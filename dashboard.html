@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TTS GPU Monitor</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      padding: 24px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+    header h1 { font-size: 1.4rem; font-weight: 600; }
+    #refresh-info { font-size: 0.8rem; color: #64748b; }
+
+    /* ── Tabs ── */
+    .tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 24px;
+      border-bottom: 1px solid #2d3148;
+      padding-bottom: 0;
+    }
+    .tab {
+      padding: 8px 18px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #64748b;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+    }
+    .tab.active { color: #4f6ef7; border-bottom-color: #4f6ef7; }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* ── Status pills ── */
+    #status-bar { display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; }
+    .status-pill {
+      padding: 4px 12px; border-radius: 999px;
+      font-size: 0.75rem; font-weight: 600;
+    }
+    .status-pill.up   { background: #14532d; color: #4ade80; border: 1px solid #4ade80; }
+    .status-pill.down { background: #450a0a; color: #f87171; border: 1px solid #f87171; }
+
+    /* ── Cards ── */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 16px;
+    }
+    .card {
+      background: #1e2130; border: 1px solid #2d3148;
+      border-radius: 12px; padding: 20px;
+    }
+    .card.down { border-color: #f87171; opacity: 0.7; }
+    .card-header {
+      display: flex; justify-content: space-between;
+      align-items: flex-start; margin-bottom: 16px;
+    }
+    .card-ip { font-size: 0.85rem; font-weight: 700; color: #94a3b8; font-family: monospace; }
+    .badge { font-size: 0.7rem; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+    .badge.up   { background: #14532d; color: #4ade80; }
+    .badge.down { background: #450a0a; color: #f87171; }
+    .engine-info { font-size: 0.72rem; color: #475569; margin-bottom: 14px; line-height: 1.6; }
+
+    .metrics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+    .metric { background: #0f1117; border-radius: 8px; padding: 10px 12px; }
+    .metric-label { font-size: 0.68rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+    .metric-value { font-size: 1.3rem; font-weight: 700; color: #f8fafc; }
+    .metric-value.highlight { color: #4f6ef7; }
+    .metric-value.warn      { color: #f59e0b; }
+    .metric-value.danger    { color: #f87171; }
+    .metric-sub { font-size: 0.7rem; color: #475569; margin-top: 2px; }
+
+    .voice-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; margin-top: 4px; }
+    .voice-table th {
+      text-align: left; color: #475569; font-weight: 600;
+      padding: 4px 6px; border-bottom: 1px solid #2d3148;
+      text-transform: uppercase; font-size: 0.65rem; letter-spacing: 0.05em;
+    }
+    .voice-table td { padding: 5px 6px; border-bottom: 1px solid #1a1f2e; color: #cbd5e1; }
+    .voice-table tr:last-child td { border-bottom: none; }
+
+    .section-label {
+      font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em;
+      color: #475569; margin-bottom: 8px; margin-top: 14px;
+    }
+    .ws-bar { background: #0f1117; border-radius: 6px; height: 8px; overflow: hidden; margin-top: 6px; }
+    .ws-bar-fill { height: 100%; background: #4f6ef7; border-radius: 6px; transition: width 0.4s; }
+    .error-msg { font-size: 0.75rem; color: #f87171; margin-top: 8px; }
+
+    /* ── Charts tab ── */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(480px, 1fr));
+      gap: 20px;
+    }
+    .chart-card {
+      background: #1e2130; border: 1px solid #2d3148;
+      border-radius: 12px; padding: 20px;
+    }
+    .chart-card h3 { font-size: 0.85rem; color: #94a3b8; margin-bottom: 16px; font-weight: 600; }
+    .chart-card canvas { width: 100% !important; }
+
+    #loading { text-align: center; color: #475569; padding: 60px; font-size: 0.9rem; }
+
+    /* ── Summary panel ── */
+    #summary-panel {
+      background: #1e2130;
+      border: 1px solid #2d3148;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .summary-top {
+      display: flex;
+      gap: 24px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .summary-stat {
+      background: #0f1117;
+      border-radius: 8px;
+      padding: 12px 20px;
+      min-width: 160px;
+    }
+    .summary-stat .metric-label { font-size: 0.68rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+    .summary-stat .metric-value { font-size: 1.6rem; font-weight: 700; }
+    .summary-stat .metric-sub   { font-size: 0.7rem; color: #475569; margin-top: 2px; }
+    .ws-grid-label {
+      font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em;
+      color: #475569; margin-bottom: 10px;
+    }
+    .ws-node-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .ws-node-chip {
+      background: #0f1117;
+      border: 1px solid #2d3148;
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: 0.78rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 120px;
+    }
+    .ws-node-chip .chip-ip   { color: #64748b; font-family: monospace; font-size: 0.7rem; }
+    .ws-node-chip .chip-val  { font-size: 1.1rem; font-weight: 700; color: #4f6ef7; margin: 2px 0; }
+    .ws-node-chip.down-chip  { border-color: #f87171; opacity: 0.6; }
+    .ws-node-chip .chip-val.down { color: #f87171; font-size: 0.75rem; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>TTS GPU Monitor</h1>
+  <span id="refresh-info">Refreshing every 10s</span>
+</header>
+
+<div id="status-bar"></div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('cards')">Node Cards</div>
+  <div class="tab" onclick="switchTab('charts')">Charts</div>
+</div>
+
+<div id="loading">Loading metrics...</div>
+
+<!-- Summary panel: always visible above tabs -->
+<div id="summary-panel" style="display:none">
+  <div class="summary-top">
+    <div class="summary-stat">
+      <div class="metric-label">Avg Active WebSockets</div>
+      <div class="metric-value highlight" id="sum-avg-ws">—</div>
+      <div class="metric-sub" id="sum-total-ws"></div>
+    </div>
+    <div class="summary-stat">
+      <div class="metric-label">Avg TTFT (LLM latency)</div>
+      <div class="metric-value highlight" id="sum-avg-ttft">—</div>
+      <div class="metric-sub">across all nodes &amp; voices</div>
+    </div>
+    <div class="summary-stat">
+      <div class="metric-label">Avg Total Requests</div>
+      <div class="metric-value highlight" id="sum-avg-reqs">—</div>
+      <div class="metric-sub" id="sum-total-reqs"></div>
+    </div>
+    <div class="summary-stat">
+      <div class="metric-label">Nodes Up</div>
+      <div class="metric-value highlight" id="sum-nodes-up">—</div>
+      <div class="metric-sub" id="sum-nodes-total"></div>
+    </div>
+  </div>
+  <div class="ws-grid-label">Active WebSockets per Node</div>
+  <div class="ws-node-grid" id="ws-node-grid"></div>
+</div>
+
+<div id="tab-cards" class="tab-content active">
+  <div class="grid" id="grid"></div>
+</div>
+
+<div id="tab-charts" class="tab-content">
+  <div class="charts-grid" id="charts-grid">
+    <div class="chart-card"><h3>Requests by Voice (Bar)</h3><canvas id="chart-requests"></canvas></div>
+    <div class="chart-card"><h3>Avg E2E Latency by Voice (Bar)</h3><canvas id="chart-latency"></canvas></div>
+    <div class="chart-card"><h3>Avg LLM vs Decode Latency (Bar)</h3><canvas id="chart-llm-decode"></canvas></div>
+    <div class="chart-card"><h3>Short Audio Alerts by Voice (Bar)</h3><canvas id="chart-short"></canvas></div>
+    <div class="chart-card"><h3>Active WebSockets per Node (Bar)</h3><canvas id="chart-ws"></canvas></div>
+    <div class="chart-card"><h3>Active WebSockets Over Time (Line)</h3><canvas id="chart-ws-time"></canvas></div>
+    <div class="chart-card"><h3>E2E Latency Over Time (Line)</h3><canvas id="chart-e2e-time"></canvas></div>
+  </div>
+</div>
+
+<script>
+// ── CONFIG ───────────────────────────────────────────────────────────────────
+const NODES = [
+  "34.87.172.248:8764",
+  "34.21.178.114:8764",
+  "34.21.197.73:8764",
+  "34.21.162.21:8764",
+  "34.124.223.202:8764",
+  "34.142.159.11:8764",
+  "35.247.177.234:8764",
+  "35.240.199.137:8764",
+  "34.21.166.27:8764",
+  "35.240.145.107:8764",
+  "34.21.148.110:8764",
+  "34.142.177.77:8764",
+  "136.110.9.69:8764",
+  "35.240.196.118:8764",
+  "34.143.255.239:8764",
+  "34.21.184.116:8764",
+  "35.197.138.157:8764",
+  "34.87.83.48:8764",
+  "136.110.48.232:8764",
+  "34.21.168.212:8764",
+  "34.124.185.219:8764",
+  "34.21.195.156:8764",
+  "34.87.61.55:8764",
+  "35.247.130.84:8764",
+  "35.186.149.191:8764",
+  "34.142.151.40:8764",
+  "34.21.188.20:8764",
+  "34.143.197.30:8764",
+  "35.240.190.241:8764",
+  "34.87.174.165:8764",
+  "34.124.191.114:8764",
+  "35.198.207.7:8764",
+  "34.143.147.217:8764",
+  "34.21.153.158:8764",
+  "35.185.180.5:8764",
+  "34.143.231.45:8764",
+  "34.143.203.107:8764",
+  "34.143.225.20:8764",
+  "34.21.191.184:8764",
+  "34.87.150.196:8764",
+  "34.124.206.81:8764",
+  "34.158.46.235:8764",
+  "34.87.107.25:8764",
+  "34.158.53.115:8764",
+  "34.177.103.93:8764",
+  "34.124.163.226:8764",
+  "34.124.232.29:8764",
+  "34.124.224.103:8764",
+  "34.21.178.52:8764",
+  "34.124.205.143:8764",
+  "34.124.205.173:8764",
+  "34.21.170.133:8764",
+  "35.247.150.171:8764",
+  "34.21.173.184:8764",
+  "34.143.189.12:8764",
+  "34.143.242.98:8764",
+  "35.247.130.20:8764",
+  "34.142.172.100:8764",
+  "34.21.166.147:8764",
+  "35.198.192.228:8764",
+  "34.124.201.192:8764",
+  "34.21.183.115:8764",
+  "34.126.173.128:8764",
+  "34.126.167.89:8764",
+];
+const METRICS_PATH = "/metrics";
+const REFRESH_MS   = 10_000;
+const MAX_HISTORY  = 20; // points kept for time-series
+// ─────────────────────────────────────────────────────────────────────────────
+
+// History buffer for time-series chart
+const history = { labels: [], e2e: {}, ws: {} };
+
+// Chart instances (to update without recreating)
+const charts = {};
+
+Chart.defaults.color = "#64748b";
+Chart.defaults.borderColor = "#2d3148";
+
+const PALETTE = [
+  "#4f6ef7","#34d399","#f59e0b","#f87171",
+  "#a78bfa","#38bdf8","#fb923c","#e879f9",
+];
+
+function parsePrometheus(text) {
+  const result = {};
+  for (const line of text.split("\n")) {
+    if (line.startsWith("#") || !line.trim()) continue;
+    const match = line.match(/^([a-zA-Z_:][a-zA-Z0-9_:]*)(?:\{([^}]*)\})?\s+([\d.e+\-]+)/);
+    if (!match) continue;
+    const name = match[1];
+    const labels = {};
+    for (const lm of (match[2] || "").matchAll(/(\w+)="([^"]*)"/g)) labels[lm[1]] = lm[2];
+    const value = parseFloat(match[3]);
+    if (!result[name]) result[name] = [];
+    result[name].push({ labels, value });
+  }
+  return result;
+}
+
+function sumVals(arr) { return arr.reduce((a, b) => a + b, 0); }
+
+function getVal(m, name, filterFn) {
+  return sumVals((m[name] || []).filter(filterFn || (() => true)).map(e => e.value));
+}
+
+function avgLatency(m, totalMetric, countMetric, filterFn) {
+  const total = getVal(m, totalMetric, filterFn);
+  const count = getVal(m, countMetric, filterFn);
+  return count > 0 ? total / count : 0;
+}
+
+function fmt(n) {
+  if (n === undefined || isNaN(n)) return "—";
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + "M";
+  if (n >= 1_000)     return (n / 1_000).toFixed(1) + "K";
+  return n.toFixed(0);
+}
+
+function fmtMs(ms) {
+  if (isNaN(ms) || ms === 0) return "—";
+  if (ms >= 1000) return (ms / 1000).toFixed(2) + "s";
+  return ms.toFixed(0) + "ms";
+}
+
+function getVoices(dataMap) {
+  const voices = new Set();
+  for (const m of Object.values(dataMap)) {
+    for (const e of (m["tts_requests_total"] || [])) {
+      if (e.labels.voice) voices.add(e.labels.voice);
+    }
+  }
+  return [...voices].sort();
+}
+
+async function fetchNode(host) {
+  // Use local proxy to avoid CORS issues
+  const ip = host.split(":")[0];
+  const resp = await fetch(`/proxy?host=${ip}`, { signal: AbortSignal.timeout(5000) });
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  return parsePrometheus(await resp.text());
+}
+
+// ── Chart helpers ─────────────────────────────────────────────────────────────
+
+function makeOrUpdate(id, type, data, options) {
+  if (charts[id]) {
+    charts[id].data = data;
+    charts[id].update();
+  } else {
+    charts[id] = new Chart(document.getElementById(id), { type, data, options });
+  }
+}
+
+const barOpts = (title, unit = "") => ({
+  responsive: true,
+  plugins: {
+    legend: { position: "bottom", labels: { boxWidth: 12, font: { size: 11 } } },
+    tooltip: {
+      callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)}${unit}` }
+    }
+  },
+  scales: {
+    x: { ticks: { font: { size: 11 } }, grid: { color: "#1e2130" } },
+    y: { ticks: { font: { size: 11 } }, grid: { color: "#1e2130" } }
+  }
+});
+
+const lineOpts = () => ({
+  responsive: true,
+  animation: false,
+  plugins: {
+    legend: { position: "bottom", labels: { boxWidth: 12, font: { size: 11 } } }
+  },
+  scales: {
+    x: { ticks: { font: { size: 10 } }, grid: { color: "#1e2130" } },
+    y: { ticks: { font: { size: 10 } }, grid: { color: "#1e2130" } }
+  }
+});
+
+// ── Build Charts ─────────────────────────────────────────────────────────────
+
+function updateCharts(dataMap, upNodes) {
+  const voices = getVoices(dataMap);
+  const nodeLabels = upNodes;
+
+  // 1. Requests by voice (stacked per node)
+  const reqDatasets = voices.map((v, i) => ({
+    label: v || "(none)",
+    data: nodeLabels.map(h => getVal(dataMap[h], "tts_requests_total", e => e.labels.voice === v)),
+    backgroundColor: PALETTE[i % PALETTE.length],
+  }));
+  makeOrUpdate("chart-requests", "bar",
+    { labels: nodeLabels, datasets: reqDatasets },
+    { ...barOpts("Requests"), plugins: { ...barOpts("Requests").plugins }, scales: { ...barOpts("Requests").scales, x: { stacked: true, grid: { color: "#1e2130" } }, y: { stacked: true, grid: { color: "#1e2130" } } } }
+  );
+
+  // 2. Avg E2E latency by voice
+  const e2eDatasets = voices.map((v, i) => ({
+    label: v || "(none)",
+    data: nodeLabels.map(h => {
+      const m = dataMap[h];
+      return avgLatency(m, "tts_e2e_ms_total", "tts_requests_total", e => e.labels.voice === v);
+    }),
+    backgroundColor: PALETTE[i % PALETTE.length],
+  }));
+  makeOrUpdate("chart-latency", "bar",
+    { labels: nodeLabels, datasets: e2eDatasets },
+    barOpts("Avg E2E Latency", "ms")
+  );
+
+  // 3. LLM vs Decode latency (grouped, all voices combined)
+  makeOrUpdate("chart-llm-decode", "bar", {
+    labels: nodeLabels,
+    datasets: [
+      {
+        label: "Avg LLM (ms)",
+        data: nodeLabels.map(h => avgLatency(dataMap[h], "tts_llm_ms_total", "tts_requests_total")),
+        backgroundColor: "#4f6ef7",
+      },
+      {
+        label: "Avg Decode (ms)",
+        data: nodeLabels.map(h => avgLatency(dataMap[h], "tts_decode_ms_total", "tts_requests_total")),
+        backgroundColor: "#34d399",
+      }
+    ]
+  }, barOpts("LLM vs Decode", "ms"));
+
+  // 4. Short audio by voice
+  const shortDatasets = voices.map((v, i) => ({
+    label: v || "(none)",
+    data: nodeLabels.map(h => getVal(dataMap[h], "tts_short_audio_total", e => e.labels.voice === v)),
+    backgroundColor: PALETTE[i % PALETTE.length],
+  }));
+  makeOrUpdate("chart-short", "bar",
+    { labels: nodeLabels, datasets: shortDatasets },
+    barOpts("Short Audio Count")
+  );
+
+  // 5. Active WebSockets per node (with numbers on bars)
+  const wsData = nodeLabels.map(h => getVal(dataMap[h], "tts_active_websockets"));
+  const avgWS = wsData.length ? (wsData.reduce((a,b) => a+b, 0) / wsData.length).toFixed(1) : 0;
+  makeOrUpdate("chart-ws", "bar", {
+    labels: nodeLabels,
+    datasets: [{
+      label: "Active WebSockets",
+      data: wsData,
+      backgroundColor: "#a78bfa",
+    }]
+  }, {
+    ...barOpts("Active WebSockets"),
+    plugins: {
+      ...barOpts("Active WebSockets").plugins,
+      annotation: {},
+      datalabels: { display: false },
+      title: {
+        display: true,
+        text: `Avg across nodes: ${avgWS}`,
+        color: "#94a3b8",
+        font: { size: 11 },
+        padding: { bottom: 8 }
+      }
+    }
+  });
+
+  // 5b. WebSocket history time-series
+  nodeLabels.forEach((h, i) => {
+    if (!history.ws[h]) history.ws[h] = [];
+    history.ws[h].push(getVal(dataMap[h], "tts_active_websockets"));
+    if (history.ws[h].length > MAX_HISTORY) history.ws[h].shift();
+  });
+  makeOrUpdate("chart-ws-time", "line", {
+    labels: history.labels,
+    datasets: nodeLabels.map((h, i) => ({
+      label: h,
+      data: history.ws[h],
+      borderColor: PALETTE[i % PALETTE.length],
+      backgroundColor: "transparent",
+      tension: 0.3,
+      pointRadius: 3,
+    }))
+  }, lineOpts());
+
+  // 6. E2E Latency time-series
+  const now = new Date().toLocaleTimeString();
+  history.labels.push(now);
+  if (history.labels.length > MAX_HISTORY) history.labels.shift();
+
+  nodeLabels.forEach(h => {
+    if (!history.e2e[h]) history.e2e[h] = [];
+    history.e2e[h].push(avgLatency(dataMap[h], "tts_e2e_ms_total", "tts_requests_total"));
+    if (history.e2e[h].length > MAX_HISTORY) history.e2e[h].shift();
+  });
+
+  makeOrUpdate("chart-e2e-time", "line", {
+    labels: history.labels,
+    datasets: nodeLabels.map((h, i) => ({
+      label: h,
+      data: history.e2e[h],
+      borderColor: PALETTE[i % PALETTE.length],
+      backgroundColor: "transparent",
+      tension: 0.3,
+      pointRadius: 3,
+    }))
+  }, lineOpts());
+}
+
+// ── Build Node Cards ──────────────────────────────────────────────────────────
+
+function buildCard(host, m) {
+  const totalReqs  = getVal(m, "tts_requests_total");
+  const totalErrors= getVal(m, "tts_errors_total");
+  const activeWS   = getVal(m, "tts_active_websockets");
+  const maxPorts   = getVal(m, "tts_max_ports");
+  const openPorts  = getVal(m, "tts_open_ports");
+  const wsOpened   = getVal(m, "tts_ws_connections_opened_total");
+  const wsClosed   = getVal(m, "tts_ws_connections_closed_total");
+  const avgE2E     = avgLatency(m, "tts_e2e_ms_total", "tts_requests_total");
+  const avgLLM     = avgLatency(m, "tts_llm_ms_total", "tts_requests_total");
+  const avgDecode  = avgLatency(m, "tts_decode_ms_total", "tts_requests_total");
+  const shortAudio = getVal(m, "tts_short_audio_total");
+  const errorRate  = totalReqs > 0 ? (totalErrors / totalReqs * 100) : 0;
+  const wsUtil     = maxPorts > 0 ? (openPorts / maxPorts * 100) : 0;
+
+  const engineEntry = (m["tts_engine_info"] || [])[0];
+  const engine = engineEntry ? engineEntry.labels : {};
+  const voices = [...new Set((m["tts_requests_total"] || []).map(e => e.labels.voice).filter(Boolean))].sort();
+
+  const e2eClass = avgE2E > 2000 ? "danger" : avgE2E > 1000 ? "warn" : "highlight";
+
+  const voiceRows = voices.map(v => {
+    const reqs   = getVal(m, "tts_requests_total",  e => e.labels.voice === v);
+    const e2e    = avgLatency(m, "tts_e2e_ms_total", "tts_requests_total", e => e.labels.voice === v);
+    const shorts = getVal(m, "tts_short_audio_total", e => e.labels.voice === v);
+    return `<tr><td>${v}</td><td>${fmt(reqs)}</td><td>${fmtMs(e2e)}</td><td>${fmt(shorts)}</td></tr>`;
+  }).join("");
+
+  const engineStr = engine.attention_backend
+    ? `backend: ${engine.attention_backend} &nbsp;|&nbsp; tp: ${engine.tp_size} &nbsp;|&nbsp; gpu: ${engine.model_gpu_id}`
+    : "";
+
+  return `
+    <div class="card">
+      <div class="card-header">
+        <span class="card-ip">${host}</span>
+        <span class="badge up">UP</span>
+      </div>
+      ${engineStr ? `<div class="engine-info">${engineStr}</div>` : ""}
+      <div class="metrics-grid">
+        <div class="metric">
+          <div class="metric-label">Total Requests</div>
+          <div class="metric-value highlight">${fmt(totalReqs)}</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Errors</div>
+          <div class="metric-value ${errorRate > 5 ? "danger" : errorRate > 1 ? "warn" : ""}">${fmt(totalErrors)}</div>
+          <div class="metric-sub">${errorRate.toFixed(1)}% error rate</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Avg E2E Latency</div>
+          <div class="metric-value ${e2eClass}">${fmtMs(avgE2E)}</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Short Audio</div>
+          <div class="metric-value ${shortAudio > 0 ? "warn" : ""}">${fmt(shortAudio)}</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Avg LLM</div>
+          <div class="metric-value">${fmtMs(avgLLM)}</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Avg Decode</div>
+          <div class="metric-value">${fmtMs(avgDecode)}</div>
+        </div>
+      </div>
+      <div class="section-label">WebSocket Connections</div>
+      <div class="metrics-grid">
+        <div class="metric">
+          <div class="metric-label">Active WebSockets</div>
+          <div class="metric-value highlight">${fmt(activeWS)}</div>
+          <div class="metric-sub">${fmt(openPorts)} / ${fmt(maxPorts)} ports open</div>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
+            <div class="ws-bar" style="flex:1"><div class="ws-bar-fill" style="width:${Math.min(wsUtil,100)}%"></div></div>
+            <span style="font-size:0.7rem;color:#64748b;min-width:32px;text-align:right">${Math.round(wsUtil)}%</span>
+          </div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Opened / Closed</div>
+          <div class="metric-value">${fmt(wsOpened)}</div>
+          <div class="metric-sub">${fmt(wsClosed)} closed</div>
+        </div>
+      </div>
+      ${voices.length ? `
+      <div class="section-label">By Voice</div>
+      <table class="voice-table">
+        <thead><tr><th>Voice</th><th>Reqs</th><th>Avg E2E</th><th>Short</th></tr></thead>
+        <tbody>${voiceRows}</tbody>
+      </table>` : ""}
+    </div>`;
+}
+
+function buildDownCard(host, error) {
+  return `
+    <div class="card down">
+      <div class="card-header">
+        <span class="card-ip">${host}</span>
+        <span class="badge down">DOWN</span>
+      </div>
+      <div class="error-msg">${error}</div>
+    </div>`;
+}
+
+// ── Summary panel ────────────────────────────────────────────────────────────
+
+function updateSummary(dataMap, upNodes, results) {
+  document.getElementById("summary-panel").style.display = "block";
+
+  // Active WebSockets per node
+  const wsValues = upNodes.map(h => getVal(dataMap[h], "tts_active_websockets"));
+  const totalWS  = wsValues.reduce((a, b) => a + b, 0);
+  const avgWS    = wsValues.length ? (totalWS / wsValues.length).toFixed(1) : 0;
+
+  document.getElementById("sum-avg-ws").textContent = avgWS;
+  document.getElementById("sum-total-ws").textContent = `${totalWS} total across ${upNodes.length} node${upNodes.length !== 1 ? "s" : ""}`;
+
+  // Avg TTFT = avg LLM latency across all nodes
+  let totalLLM = 0, totalReqs = 0;
+  for (const h of upNodes) {
+    totalLLM  += getVal(dataMap[h], "tts_llm_ms_total");
+    totalReqs += getVal(dataMap[h], "tts_requests_total");
+  }
+  const avgTTFT = totalReqs > 0 ? totalLLM / totalReqs : 0;
+  document.getElementById("sum-avg-ttft").textContent = fmtMs(avgTTFT);
+
+  // Nodes up
+  // Avg total requests per node
+  const reqsPerNode = upNodes.map(h => getVal(dataMap[h], "tts_requests_total"));
+  const totalReqsAll = reqsPerNode.reduce((a, b) => a + b, 0);
+  const avgReqs = reqsPerNode.length ? (totalReqsAll / reqsPerNode.length).toFixed(0) : 0;
+  document.getElementById("sum-avg-reqs").textContent = fmt(Number(avgReqs));
+  document.getElementById("sum-total-reqs").textContent = `${fmt(totalReqsAll)} total across all nodes`;
+
+  document.getElementById("sum-nodes-up").textContent = upNodes.length;
+  document.getElementById("sum-nodes-total").textContent = `of ${NODES.length} total`;
+
+  // Per-node WebSocket chips
+  const grid = document.getElementById("ws-node-grid");
+  grid.innerHTML = results.map((r, i) => {
+    const host = NODES[i];
+    const ip   = host.split(":")[0];
+    if (r.status === "fulfilled") {
+      const ws = getVal(r.value, "tts_active_websockets");
+      return `<div class="ws-node-chip">
+        <span class="chip-ip">${ip}</span>
+        <span class="chip-val">${ws}</span>
+        <span style="font-size:0.65rem;color:#475569">active ws</span>
+      </div>`;
+    } else {
+      return `<div class="ws-node-chip down-chip">
+        <span class="chip-ip">${ip}</span>
+        <span class="chip-val down">DOWN</span>
+      </div>`;
+    }
+  }).join("");
+}
+
+// ── Main refresh loop ─────────────────────────────────────────────────────────
+
+async function refresh() {
+  const results = await Promise.allSettled(NODES.map(h => fetchNode(h)));
+
+  let upCount = 0, downCount = 0;
+  const cards = [];
+  const dataMap = {};
+  const upNodes = [];
+
+  results.forEach((r, i) => {
+    const host = NODES[i];
+    if (r.status === "fulfilled") {
+      upCount++;
+      upNodes.push(host);
+      dataMap[host] = r.value;
+      cards.push(buildCard(host, r.value));
+    } else {
+      downCount++;
+      cards.push(buildDownCard(host, r.reason?.message || "Unreachable"));
+    }
+  });
+
+  document.getElementById("loading").style.display = "none";
+  document.getElementById("grid").innerHTML = cards.join("");
+
+  document.getElementById("status-bar").innerHTML = `
+    <span class="status-pill up">${upCount} UP</span>
+    ${downCount ? `<span class="status-pill down">${downCount} DOWN</span>` : ""}
+  `;
+
+  document.getElementById("refresh-info").textContent =
+    `Last updated: ${new Date().toLocaleTimeString()} · every ${REFRESH_MS/1000}s`;
+
+  updateSummary(dataMap, upNodes, results);
+  if (upNodes.length) updateCharts(dataMap, upNodes);
+}
+
+function switchTab(name) {
+  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+  document.querySelectorAll(".tab-content").forEach(t => t.classList.remove("active"));
+  document.querySelector(`[onclick="switchTab('${name}')"]`).classList.add("active");
+  document.getElementById(`tab-${name}`).classList.add("active");
+}
+
+refresh();
+setInterval(refresh, REFRESH_MS);
+</script>
+</body>
+</html>
