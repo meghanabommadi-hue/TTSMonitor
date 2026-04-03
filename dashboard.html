@@ -163,7 +163,9 @@
     .ws-node-chip .chip-ip   { color: #64748b; font-family: monospace; font-size: 0.7rem; }
     .ws-node-chip .chip-val  { font-size: 1.1rem; font-weight: 700; color: #4f6ef7; margin: 2px 0; }
     .ws-node-chip.down-chip  { border-color: #f87171; opacity: 0.6; }
-    .ws-node-chip .chip-val.down { color: #f87171; font-size: 0.75rem; }
+    .ws-node-chip .chip-val.down  { color: #f87171; font-size: 0.75rem; }
+    .ws-node-chip.stale-chip      { border-color: #f59e0b; opacity: 0.7; }
+    .ws-node-chip .chip-val.stale { color: #f59e0b; }
   </style>
 </head>
 <body>
@@ -186,14 +188,24 @@
 <div id="summary-panel" style="display:none">
   <div class="summary-top">
     <div class="summary-stat">
-      <div class="metric-label">Total Active WebSockets</div>
-      <div class="metric-value highlight" id="sum-total-ws-val">—</div>
-      <div class="metric-sub" id="sum-total-ws">across all nodes</div>
+      <div class="metric-label">Active WebSockets</div>
+      <div class="metric-value" style="color:#4ade80;font-size:1.6rem;font-weight:700" id="sum-ws-active">0</div>
+      <div class="metric-sub">nodes with recent requests</div>
     </div>
     <div class="summary-stat">
-      <div class="metric-label">Avg Active WebSockets</div>
+      <div class="metric-label">Avg Active WS / Node</div>
       <div class="metric-value highlight" id="sum-avg-ws">—</div>
-      <div class="metric-sub">per node</div>
+      <div class="metric-sub" id="sum-avg-ws-sub">across active nodes</div>
+    </div>
+    <div class="summary-stat">
+      <div class="metric-label">Idle WebSockets</div>
+      <div class="metric-value" style="color:#f59e0b;font-size:1.6rem;font-weight:700" id="sum-ws-idle">—</div>
+      <div class="metric-sub" id="sum-ws-idle-sub">no requests in 5+ min</div>
+    </div>
+    <div class="summary-stat">
+      <div class="metric-label">Active Nodes (3 min)</div>
+      <div class="metric-value" style="color:#a78bfa;font-size:1.6rem;font-weight:700" id="sum-req-rate">—</div>
+      <div class="metric-sub" id="sum-req-rate-sub">new requests in last 3 min</div>
     </div>
     <div class="summary-stat">
       <div class="metric-label">Avg E2E Latency</div>
@@ -210,9 +222,37 @@
       <div class="metric-value highlight" id="sum-nodes-up">—</div>
       <div class="metric-sub" id="sum-nodes-total"></div>
     </div>
+    <div class="summary-stat">
+      <div class="metric-label">Traffic Status</div>
+      <div class="metric-value" id="sum-traffic-status" style="font-size:1rem;margin-top:4px">—</div>
+      <div class="metric-sub" id="sum-traffic-sub">checking…</div>
+    </div>
   </div>
-  <div class="ws-grid-label">Active WebSockets per Node</div>
-  <div class="ws-node-grid" id="ws-node-grid"></div>
+  <div style="margin-top:16px">
+    <div class="ws-grid-label" style="color:#4ade80">Active Nodes (requests in last 5 min)</div>
+    <div class="ws-node-grid" id="ws-node-grid-active" style="margin-bottom:16px"></div>
+    <div class="ws-grid-label" style="color:#f59e0b">Idle Nodes (no requests in 5+ min)</div>
+    <div class="ws-node-grid" id="ws-node-grid-idle"></div>
+  </div>
+  <div style="margin-top:16px">
+    <div class="ws-grid-label">Total Requests by Voice (all nodes)</div>
+    <canvas id="chart-voice-reqs" style="background:#0f1117;border-radius:8px;padding:8px;max-height:200px"></canvas>
+  </div>
+  <div style="margin-top:16px;border-top:1px solid #2d3148;padding-top:16px">
+    <div class="ws-grid-label">Cache</div>
+    <div class="summary-top" style="margin-top:8px">
+      <div class="summary-stat">
+        <div class="metric-label">Cache Hit Rate</div>
+        <div class="metric-value" id="sum-cache-rate" style="font-size:1.6rem;font-weight:700">—</div>
+        <div class="metric-sub" id="sum-cache-sub">hits / total cache calls</div>
+      </div>
+      <div class="summary-stat">
+        <div class="metric-label">Cache Hits</div>
+        <div class="metric-value" id="sum-cache-hits" style="color:#4ade80;font-size:1.6rem;font-weight:700">—</div>
+        <div class="metric-sub" id="sum-cache-misses-sub"></div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div id="tab-cards" class="tab-content active">
@@ -309,6 +349,8 @@ const MAX_HISTORY  = 20; // points kept for time-series
 
 // History buffer for time-series chart
 const history = { labels: [], e2e: {}, ws: {} };
+let prevTotalReqs = null;
+let activityData = {};  // ip -> { active, ws, idle_since_ms } from /activity
 
 // Chart instances (to update without recreating)
 const charts = {};
@@ -686,16 +728,40 @@ function buildDownCard(host, error) {
 
 // ── Summary panel ────────────────────────────────────────────────────────────
 
-function updateSummary(dataMap, upNodes, results) {
+async function updateSummary(dataMap, upNodes, results) {
   document.getElementById("summary-panel").style.display = "block";
 
   // Active WebSockets per node
-  const wsValues = upNodes.map(h => getVal(dataMap[h], "tts_active_websockets"));
-  const totalWS  = wsValues.reduce((a, b) => a + b, 0);
-  const avgWS    = wsValues.length ? (totalWS / wsValues.length).toFixed(1) : 0;
+  const now = Date.now();
+  const namedFilter = e => e.labels.voice && e.labels.voice !== "";
 
-  document.getElementById("sum-total-ws-val").textContent = totalWS;
-  document.getElementById("sum-avg-ws").textContent = avgWS;
+  // Fetch activity data from server (uses 5-min cache window with timestamps)
+  try {
+    const resp = await fetch("/activity", { signal: AbortSignal.timeout(3000) });
+    if (resp.ok) activityData = await resp.json();
+  } catch(_) { /* cache not ready yet, use fallback */ }
+
+  let activeWS = 0, idleWS = 0;
+  for (const h of upNodes) {
+    const info = activityData[h.split(":")[0]];
+    const ws   = getVal(dataMap[h], "tts_active_websockets");
+    // tts_active_websockets gauge never decrements on disconnect — only count
+    // WS as active if the node actually has new requests flowing
+    if (info?.active === true) {
+      activeWS += ws;
+    }
+    // idle/unknown nodes: ws gauge is unreliable, treat as 0
+  }
+
+  const activeNodeCount = upNodes.filter(h => activityData[h.split(":")[0]]?.active === true).length;
+  const avgActiveWS     = activeNodeCount > 0 ? (activeWS / activeNodeCount).toFixed(1) : "—";
+
+  document.getElementById("sum-ws-active").textContent   = activeWS;
+  document.getElementById("sum-avg-ws").textContent      = avgActiveWS;
+  document.getElementById("sum-avg-ws-sub").textContent  = `across ${activeNodeCount} active node${activeNodeCount !== 1 ? "s" : ""}`;
+  const idleNodeCount = upNodes.filter(h => activityData[h.split(":")[0]]?.active === false).length;
+  document.getElementById("sum-ws-idle").textContent     = idleNodeCount > 0 ? `${idleNodeCount} nodes` : "0";
+  document.getElementById("sum-ws-idle-sub").textContent = idleNodeCount > 0 ? `no requests in 5+ min` : `all nodes active`;
 
   // Avg E2E latency across all nodes
   const e2eVals = upNodes.map(h => extractLatency(dataMap[h]).total_ms).filter(v => v > 0);
@@ -712,28 +778,102 @@ function updateSummary(dataMap, upNodes, results) {
   document.getElementById("sum-avg-reqs").textContent = fmt(Number(avgReqs));
   document.getElementById("sum-total-reqs").textContent = `${fmt(totalReqsAll)} total across all nodes`;
 
+  // Cache hits across all nodes
+  let totalCacheHits = 0, totalCacheMisses = 0;
+  for (const h of upNodes) {
+    totalCacheHits   += getVal(dataMap[h], "tts_cache_hits_total");
+    totalCacheMisses += getVal(dataMap[h], "tts_cache_misses_total");
+  }
+  const totalCacheAll = totalCacheHits + totalCacheMisses;
+  const cacheRate     = totalCacheAll > 0 ? (totalCacheHits / totalCacheAll * 100).toFixed(1) : null;
+  const cacheColor    = cacheRate === null ? "#475569" : cacheRate >= 70 ? "#4ade80" : cacheRate >= 30 ? "#f59e0b" : "#f87171";
+  document.getElementById("sum-cache-rate").textContent  = cacheRate !== null ? `${cacheRate}%` : "N/A";
+  document.getElementById("sum-cache-rate").style.color  = cacheColor;
+  document.getElementById("sum-cache-hits").textContent  = fmt(totalCacheHits);
+  document.getElementById("sum-cache-misses-sub").textContent = totalCacheAll > 0
+    ? `${fmt(totalCacheMisses)} misses · ${fmt(totalCacheAll)} total`
+    : "no cache data yet";
+
   document.getElementById("sum-nodes-up").textContent = upNodes.length;
   document.getElementById("sum-nodes-total").textContent = `of ${NODES.length} total`;
 
-  // Per-node WebSocket chips
-  const grid = document.getElementById("ws-node-grid");
-  grid.innerHTML = results.map((r, i) => {
+  // Traffic status — use activity data if available, else fallback to req delta
+  const currentTotalReqs = upNodes.reduce((sum, h) => sum + getVal(dataMap[h], "tts_requests_total", namedFilter), 0);
+  const trafficEl  = document.getElementById("sum-traffic-status");
+  const trafficSub = document.getElementById("sum-traffic-sub");
+  if (prevTotalReqs === null) {
+    trafficEl.textContent = "—";
+    trafficSub.textContent = "waiting for next refresh…";
+  } else if (currentTotalReqs > prevTotalReqs) {
+    const delta = currentTotalReqs - prevTotalReqs;
+    trafficEl.textContent = "ACTIVE";
+    trafficEl.style.color = "#4ade80";
+    trafficSub.textContent = `+${Math.round(delta)} reqs since last refresh`;
+  } else {
+    trafficEl.textContent = "IDLE";
+    trafficEl.style.color = "#f59e0b";
+    trafficSub.textContent = `no new requests · ${Math.round(currentTotalReqs)} total`;
+  }
+  prevTotalReqs = currentTotalReqs;
+
+  // Requests by voice across all nodes
+  const voiceTotals = {};
+  for (const h of upNodes) {
+    for (const e of (dataMap[h]["tts_requests_total"] || [])) {
+      if (!e.labels.voice || e.labels.voice === "") continue;
+      voiceTotals[e.labels.voice] = (voiceTotals[e.labels.voice] || 0) + e.value;
+    }
+  }
+  const voiceNames = Object.keys(voiceTotals).sort();
+  const voiceData  = voiceNames.map(v => voiceTotals[v]);
+  const voiceColors = ["#4f6ef7","#34d399","#f59e0b","#f87171","#a78bfa","#38bdf8"];
+  if (charts["chart-voice-reqs"]) {
+    charts["chart-voice-reqs"].data = {
+      labels: voiceNames,
+      datasets: [{ data: voiceData, backgroundColor: voiceColors }]
+    };
+    charts["chart-voice-reqs"].update();
+  } else {
+    charts["chart-voice-reqs"] = new Chart(document.getElementById("chart-voice-reqs"), {
+      type: "bar",
+      data: { labels: voiceNames, datasets: [{ data: voiceData, backgroundColor: voiceColors }] },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { color: "#1a1f2e" }, ticks: { font: { size: 11 }, color: "#94a3b8" } },
+          y: { grid: { color: "#1a1f2e" }, ticks: { font: { size: 11 }, color: "#94a3b8" } },
+        }
+      }
+    });
+  }
+
+  // Per-node WebSocket chips — split into active vs idle grids
+  const activeChips = [], idleChips = [];
+  results.forEach((r, i) => {
     const host = NODES[i];
     const ip   = host.split(":")[0];
     if (r.status === "fulfilled") {
-      const ws = getVal(r.value, "tts_active_websockets");
-      return `<div class="ws-node-chip">
+      const ws       = getVal(r.value, "tts_active_websockets");
+      const info     = activityData[host.split(":")[0]];
+      const isIdle   = info && info.active === false;
+      const idleMs   = isIdle && info.idle_since_ms ? now - info.idle_since_ms : 0;
+      const idleMin  = Math.floor(idleMs / 60000);
+      const chip = `<div class="ws-node-chip ${isIdle ? 'stale-chip' : ''}">
         <span class="chip-ip">${ip}</span>
-        <span class="chip-val">${ws}</span>
-        <span style="font-size:0.65rem;color:#475569">active ws</span>
+        <span class="chip-val ${isIdle ? 'stale' : ''}">${isIdle ? 0 : ws}</span>
+        <span style="font-size:0.65rem;color:${isIdle ? '#f59e0b' : '#475569'}">${isIdle ? `idle ${idleMin}m` : `${ws} ws`}</span>
       </div>`;
+      if (isIdle) idleChips.push(chip); else activeChips.push(chip);
     } else {
-      return `<div class="ws-node-chip down-chip">
+      idleChips.push(`<div class="ws-node-chip down-chip">
         <span class="chip-ip">${ip}</span>
         <span class="chip-val down">DOWN</span>
-      </div>`;
+      </div>`);
     }
-  }).join("");
+  });
+  document.getElementById("ws-node-grid-active").innerHTML = activeChips.join("") || '<span style="color:#475569;font-size:0.8rem">No active nodes</span>';
+  document.getElementById("ws-node-grid-idle").innerHTML   = idleChips.join("")   || '<span style="color:#475569;font-size:0.8rem">None</span>';
 }
 
 // ── Main refresh loop ─────────────────────────────────────────────────────────
@@ -770,7 +910,7 @@ async function refresh() {
   document.getElementById("refresh-info").textContent =
     `Last updated: ${new Date().toLocaleTimeString()} · every ${REFRESH_MS/1000}s`;
 
-  updateSummary(dataMap, upNodes, results);
+  await updateSummary(dataMap, upNodes, results);
   if (upNodes.length) updateCharts(dataMap, upNodes);
 }
 
@@ -781,8 +921,85 @@ function switchTab(name) {
   document.getElementById(`tab-${name}`).classList.add("active");
 }
 
+async function refreshTraffic() {
+  try {
+    const resp = await fetch("/activity", { signal: AbortSignal.timeout(3000) });
+    if (!resp.ok) return;
+    const data = await resp.json();
+    activityData = data;
+
+    const now = Date.now();
+    let activeWS = 0, idleWS = 0, activeNodeCount = 0;
+
+    for (const [ip, info] of Object.entries(data)) {
+      // tts_active_websockets gauge never decrements on disconnect — only count
+      // WS as "active" if the node actually has new requests flowing
+      if (info.active === true)  { activeWS += info.ws; activeNodeCount++; }
+      // idle or unknown nodes: WS gauge is unreliable, treat as 0
+    }
+
+    // Update WS counts
+    document.getElementById("sum-ws-active").textContent  = activeWS;
+    const idleNodeCount2 = Object.values(data).filter(v => v.active === false).length;
+    document.getElementById("sum-ws-idle").textContent    = idleNodeCount2 > 0 ? `${idleNodeCount2} nodes` : "0";
+    document.getElementById("sum-ws-idle-sub").textContent = idleNodeCount2 > 0 ? `no requests in 5+ min` : `all nodes active`;
+    document.getElementById("sum-avg-ws").textContent     = activeNodeCount > 0 ? (activeWS / activeNodeCount).toFixed(1) : "—";
+    document.getElementById("sum-avg-ws-sub").textContent = `across ${activeNodeCount} active node${activeNodeCount !== 1 ? "s" : ""}`;
+
+    // Rebuild chips
+    const activeChips = [], idleChips = [];
+    NODES.forEach(host => {
+      const ip   = host.split(":")[0];
+      const info = data[ip];
+      if (!info) return;
+      const isIdle  = info.active === false;
+      const idleMs  = isIdle && info.idle_since_ms ? now - info.idle_since_ms : 0;
+      const idleMin = Math.floor(idleMs / 60000);
+      const chip = `<div class="ws-node-chip ${isIdle ? 'stale-chip' : ''}">
+        <span class="chip-ip">${ip}</span>
+        <span class="chip-val ${isIdle ? 'stale' : ''}">${isIdle ? 0 : info.ws}</span>
+        <span style="font-size:0.65rem;color:${isIdle ? '#f59e0b' : '#475569'}">${isIdle ? `idle ${idleMin}m` : `${info.ws} ws`}</span>
+      </div>`;
+      if (isIdle) idleChips.push(chip); else activeChips.push(chip);
+    });
+    document.getElementById("ws-node-grid-active").innerHTML = activeChips.join("") || '<span style="color:#475569;font-size:0.8rem">No active nodes</span>';
+    document.getElementById("ws-node-grid-idle").innerHTML   = idleChips.join("")   || '<span style="color:#475569;font-size:0.8rem">None</span>';
+
+    // Traffic status
+    const trafficEl  = document.getElementById("sum-traffic-status");
+    const trafficSub = document.getElementById("sum-traffic-sub");
+    if (activeNodeCount > 0) {
+      trafficEl.textContent = "ACTIVE";
+      trafficEl.style.color = "#4ade80";
+      trafficSub.textContent = `${activeNodeCount} node${activeNodeCount !== 1 ? "s" : ""} receiving requests`;
+    } else {
+      trafficEl.textContent = "IDLE";
+      trafficEl.style.color = "#f59e0b";
+      trafficSub.textContent = `no new requests across all nodes`;
+    }
+
+    document.getElementById("refresh-info").textContent =
+      `Traffic updated: ${new Date().toLocaleTimeString()} · metrics every ${REFRESH_MS/1000}s`;
+  } catch(_) {}
+}
+
+async function refreshReqRate() {
+  try {
+    const resp = await fetch("/activity?window_ms=180000");
+    if (!resp.ok) return;
+    const data = await resp.json();
+    const activeCount = Object.values(data).filter(v => v.active === true).length;
+    document.getElementById("sum-req-rate").textContent     = activeCount;
+    document.getElementById("sum-req-rate-sub").textContent =
+      activeCount > 0 ? `nodes with new requests in last 3 min` : `no new requests in last 3 min`;
+  } catch(_) {}
+}
+
 refresh();
 setInterval(refresh, REFRESH_MS);
+setInterval(refreshTraffic, 5_000);
+setInterval(refreshReqRate, 10_000);
+refreshReqRate();
 </script>
 </body>
 </html>

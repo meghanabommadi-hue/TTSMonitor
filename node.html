@@ -138,7 +138,7 @@
 
 <div class="ip-bar">
   <label>Node IP</label>
-  <input id="ip-input" type="text" placeholder="34.87.172.248" value="34.87.172.248" />
+  <input id="ip-input" type="text" placeholder="34.126.91.108" value="34.126.91.108" />
   <button onclick="loadNode()">Inspect</button>
 </div>
 
@@ -193,6 +193,26 @@
       <div class="stat-label">Engine</div>
       <div class="stat-value blue" id="s-engine" style="font-size:0.85rem;margin-top:4px">—</div>
       <div class="stat-sub" id="s-gpu"></div>
+    </div>
+  </div>
+
+  <!-- Cache panel -->
+  <div class="section-title">Cache</div>
+  <div id="cache-panel" style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px">
+    <div class="stat" style="min-width:130px">
+      <div class="stat-label">Cache Hits</div>
+      <div class="stat-value green" id="c-hits">—</div>
+      <div class="stat-sub" id="c-hitrate"></div>
+    </div>
+    <div class="stat" style="min-width:130px">
+      <div class="stat-label">Cache Misses</div>
+      <div class="stat-value yellow" id="c-misses">—</div>
+      <div class="stat-sub" id="c-total"></div>
+    </div>
+    <div class="stat" style="min-width:130px">
+      <div class="stat-label">Hit Rate</div>
+      <div class="stat-value" id="c-rate" style="font-size:1.5rem;font-weight:700">—</div>
+      <div class="stat-sub" id="c-status"></div>
     </div>
   </div>
 
@@ -385,6 +405,29 @@ function render(m, ts) {
   const tag = document.getElementById("source-tag");
   tag.style.display = "inline";
   tag.textContent = lat.source === "gauge" ? "gauge metrics" : "counter avg";
+
+  // Cache
+  const cacheHits   = getVal(m, "tts_cache_hits_total");
+  const cacheMisses = getVal(m, "tts_cache_misses_total");
+  const cacheTotal  = cacheHits + cacheMisses;
+  const hasCache    = (m["tts_cache_hits_total"]?.length > 0 || m["tts_cache_misses_total"]?.length > 0);
+  if (hasCache) {
+    const rate = cacheTotal > 0 ? (cacheHits / cacheTotal * 100).toFixed(1) : 0;
+    const rateColor = rate >= 70 ? "#4ade80" : rate >= 30 ? "#f59e0b" : "#f87171";
+    document.getElementById("c-hits").textContent    = fmt(cacheHits);
+    document.getElementById("c-misses").textContent  = fmt(cacheMisses);
+    document.getElementById("c-hitrate").textContent = `of ${fmt(cacheTotal)} requests`;
+    document.getElementById("c-total").textContent   = `total cache calls`;
+    document.getElementById("c-rate").textContent    = `${rate}%`;
+    document.getElementById("c-rate").style.color    = rateColor;
+    document.getElementById("c-status").textContent  = rate >= 70 ? "good" : rate >= 30 ? "moderate" : cacheTotal === 0 ? "no data" : "low";
+  } else {
+    document.getElementById("c-hits").textContent   = "N/A";
+    document.getElementById("c-misses").textContent = "N/A";
+    document.getElementById("c-rate").textContent   = "N/A";
+    document.getElementById("c-rate").style.color   = "#475569";
+    document.getElementById("c-status").textContent = "metric not available";
+  }
 
   // Voices
   const voices = [...new Set((m["tts_requests_total"] || []).map(e => e.labels.voice))].sort();

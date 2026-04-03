@@ -16,7 +16,32 @@
       "Bash(git rebase:*)",
       "Bash(GIT_EDITOR=true git rebase --continue)",
       "Bash(curl -s http://34.87.172.248:8764/metrics)",
-      "Bash(python3 fetch_latency.py 34.87.172.248:8764)"
+      "Bash(python3 fetch_latency.py 34.87.172.248:8764)",
+      "Bash(curl -s http://34.21.167.200:8764/metrics)",
+      "Bash(python3 -c ':*)",
+      "Bash(curl -s http://34.21.167.200:8764/)",
+      "Bash(curl -sv http://34.21.167.200:8764/admin)",
+      "Bash(curl -sv http://34.21.167.200:8764/close)",
+      "Bash(curl -s http://34.126.91.108:8765/metrics)",
+      "Bash(curl -s http://34.126.91.108:8766/metrics)",
+      "Bash(curl -s http://34.126.91.108:8080/metrics)",
+      "Bash(curl -s http://34.126.91.108:8764/stats)",
+      "Bash(curl -s http://34.126.91.108:8764/status)",
+      "Bash(curl -s http://34.126.91.108:8764/info)",
+      "Bash(curl -s http://34.126.91.108:8764/debug)",
+      "Bash(curl -s http://34.126.91.108:8764/latency)",
+      "Bash(curl -s http://34.126.91.108:8764/health)",
+      "Bash(curl -s \"http://localhost:8080/activity\")",
+      "Bash(python3 -c \" import json, sys data = json.load\\(sys.stdin\\) active = [\\(ip, v\\) for ip, v in data.items\\(\\) if v.get\\('active'\\) == True] idle = [\\(ip, v\\) for ip, v in data.items\\(\\) if v.get\\('active'\\) == False] none_state = [\\(ip, v\\) for ip, v in data.items\\(\\) if v.get\\('active'\\) is None] print\\(f'Active: {len\\(active\\)}'\\) print\\(f'Idle: {len\\(idle\\)}'\\) print\\(f'Unknown \\(not enough data\\): {len\\(none_state\\)}'\\) print\\(f'Total: {len\\(data\\)}'\\) \")",
+      "Bash(python3 -c \" import json, sys data = json.load\\(sys.stdin\\) active_ips = [ip for ip,v in data.items\\(\\) if v.get\\('active'\\) == True] print\\('Active nodes:', active_ips\\) \")",
+      "Bash(curl -s \"http://localhost:8080/cache-info\")",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('Snapshots sample:', list\\(d['snapshots'].items\\(\\)\\)[:3]\\)\")",
+      "Bash(curl -s \"http://localhost:8080/proxy?host=35.240.199.137:8764\")",
+      "Bash(curl -s \"http://35.240.199.137:8764/metrics\")",
+      "Bash(curl -s \"http://localhost:8080/activity?window_ms=180000\")",
+      "Bash(curl -s \"http://localhost:8080/history?host=35.240.199.137&last=5\")",
+      "Bash(curl -s \"http://localhost:8080/activity?window_ms=60000\")",
+      "Bash(curl -s \"http://localhost:8080/history?host=35.240.199.137&last=6\")"
     ]
   }
 }

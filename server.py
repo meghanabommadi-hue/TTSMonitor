@@ -133,6 +133,58 @@ async def handle_history(request: web.Request) -> web.Response:
     )
 
 
+async def handle_activity(request: web.Request) -> web.Response:
+    """
+    For each node, check if tts_requests_total (named voices) changed
+    in the last 5 minutes of cached snapshots.
+    Returns: { ip: { active: bool, ws: int, idle_since_ms: int|null } }
+    """
+    window_ms = int(request.query.get("window_ms", 5 * 60 * 1000))
+    now       = int(time.time() * 1000)
+    cutoff    = now - window_ms
+    result    = {}
+
+    for ip in NODES:
+        snaps = [s for s in cache.get(ip, []) if s["ts"] >= cutoff]
+        if len(snaps) < 2:
+            # not enough data yet
+            result[ip] = {"active": None, "ws": 0, "idle_since_ms": None}
+            continue
+
+        def named_reqs(metrics):
+            return sum(
+                e["value"] for e in metrics.get("tts_requests_total", [])
+                if e["labels"].get("voice", "") != ""
+            )
+
+        first_reqs = named_reqs(snaps[0]["metrics"])
+        last_reqs  = named_reqs(snaps[-1]["metrics"])
+        ws         = sum(e["value"] for e in snaps[-1]["metrics"].get("tts_active_websockets", []))
+        active     = last_reqs > first_reqs
+
+        # Find when it last went idle — walk backwards to find last snapshot with new reqs
+        idle_since = None
+        if not active:
+            for i in range(len(snaps) - 1, 0, -1):
+                if named_reqs(snaps[i]["metrics"]) > named_reqs(snaps[i-1]["metrics"]):
+                    idle_since = snaps[i]["ts"]
+                    break
+            if idle_since is None:
+                idle_since = snaps[0]["ts"]  # idle for the whole window
+
+        result[ip] = {
+            "active":        active,
+            "ws":            int(ws),
+            "idle_since_ms": idle_since,
+        }
+
+    return web.Response(
+        text=json.dumps(result),
+        content_type="application/json",
+        headers={"Access-Control-Allow-Origin": "*"},
+    )
+
+
 async def handle_cache_info(request: web.Request) -> web.Response:
     """Return how many snapshots are cached per node."""
     info = {ip: len(cache[ip]) for ip in NODES}
@@ -175,6 +227,7 @@ app = web.Application()
 app.on_startup.append(on_startup)
 app.router.add_get("/proxy",      handle_proxy)
 app.router.add_get("/history",    handle_history)
+app.router.add_get("/activity",   handle_activity)
 app.router.add_get("/cache-info", handle_cache_info)
 app.router.add_get("/",           handle_index)
 app.router.add_static("/",        ".")
