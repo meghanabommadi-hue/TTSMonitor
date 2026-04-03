@@ -186,9 +186,14 @@
 <div id="summary-panel" style="display:none">
   <div class="summary-top">
     <div class="summary-stat">
+      <div class="metric-label">Total Active WebSockets</div>
+      <div class="metric-value highlight" id="sum-total-ws-val">—</div>
+      <div class="metric-sub" id="sum-total-ws">across all nodes</div>
+    </div>
+    <div class="summary-stat">
       <div class="metric-label">Avg Active WebSockets</div>
       <div class="metric-value highlight" id="sum-avg-ws">—</div>
-      <div class="metric-sub" id="sum-total-ws"></div>
+      <div class="metric-sub">per node</div>
     </div>
     <div class="summary-stat">
       <div class="metric-label">Avg E2E Latency</div>
@@ -689,8 +694,8 @@ function updateSummary(dataMap, upNodes, results) {
   const totalWS  = wsValues.reduce((a, b) => a + b, 0);
   const avgWS    = wsValues.length ? (totalWS / wsValues.length).toFixed(1) : 0;
 
+  document.getElementById("sum-total-ws-val").textContent = totalWS;
   document.getElementById("sum-avg-ws").textContent = avgWS;
-  document.getElementById("sum-total-ws").textContent = `${totalWS} total across ${upNodes.length} node${upNodes.length !== 1 ? "s" : ""}`;
 
   // Avg E2E latency across all nodes
   const e2eVals = upNodes.map(h => extractLatency(dataMap[h]).total_ms).filter(v => v > 0);
