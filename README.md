@@ -3,7 +3,7 @@
 A lightweight real-time dashboard for monitoring a fleet of TTS (Text-to-Speech) GPU inference servers. Scrapes Prometheus metrics directly from each node and displays them in a clean browser UI — no Grafana required.
 
 ![Dashboard](https://img.shields.io/badge/stack-Python%20%7C%20aiohttp%20%7C%20Chart.js-blue)
-![Nodes](https://img.shields.io/badge/nodes-64%20GPUs-green)
+![Nodes](https://img.shields.io/badge/nodes-67%20GPUs-green)
 
 ---
 
