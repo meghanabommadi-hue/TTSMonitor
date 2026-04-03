@@ -191,9 +191,9 @@
       <div class="metric-sub" id="sum-total-ws"></div>
     </div>
     <div class="summary-stat">
-      <div class="metric-label">Avg TTFT (LLM latency)</div>
+      <div class="metric-label">Avg E2E Latency</div>
       <div class="metric-value highlight" id="sum-avg-ttft">—</div>
-      <div class="metric-sub">across all nodes &amp; voices</div>
+      <div class="metric-sub" id="sum-avg-ttft-sub">across all nodes</div>
     </div>
     <div class="summary-stat">
       <div class="metric-label">Avg Total Requests</div>
@@ -344,6 +344,39 @@ function avgLatency(m, totalMetric, countMetric, filterFn) {
   return count > 0 ? total / count : 0;
 }
 
+// Returns {llm_ttft_ms, dec_ttft_ms, total_ms, source}
+// Prefers new gauge metrics (available after server restart).
+// NOTE: tts_llm_ms_total = full generation time, NOT TTFT — llm_ttft_ms is null until gauges appear.
+function extractLatency(m) {
+  const hasGauges =
+    (m["tts_llm_ttft_avg_ms"] || []).length > 0 &&
+    (m["tts_dec_ttft_avg_ms"] || []).length > 0 &&
+    (m["tts_total_avg_ms"]    || []).length > 0;
+
+  if (hasGauges) {
+    const avg = name => {
+      const vals = (m[name] || []).map(e => e.value);
+      return vals.reduce((a, b) => a + b, 0) / vals.length;
+    };
+    return {
+      llm_ttft_ms: avg("tts_llm_ttft_avg_ms"),
+      dec_ttft_ms: avg("tts_dec_ttft_avg_ms"),
+      total_ms:    avg("tts_total_avg_ms"),
+      source: "gauge",
+    };
+  }
+
+  // Counter fallback — named voices only (voice="" are warmup/batch calls, not real TTS).
+  const named = e => e.labels.voice && e.labels.voice !== "";
+  const reqs  = getVal(m, "tts_requests_total", named);
+  return {
+    llm_ttft_ms: null,
+    dec_ttft_ms: reqs > 0 ? getVal(m, "tts_decode_ms_total", named) / reqs : 0,
+    total_ms:    reqs > 0 ? getVal(m, "tts_e2e_ms_total",    named) / reqs : 0,
+    source: "counter_avg",
+  };
+}
+
 function fmt(n) {
   if (n === undefined || isNaN(n)) return "—";
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + "M";
@@ -448,13 +481,13 @@ function updateCharts(dataMap, upNodes) {
     labels: nodeLabels,
     datasets: [
       {
-        label: "Avg LLM (ms)",
-        data: nodeLabels.map(h => avgLatency(dataMap[h], "tts_llm_ms_total", "tts_requests_total")),
+        label: "Avg LLM / TTFT (ms)",
+        data: nodeLabels.map(h => extractLatency(dataMap[h]).llm_ttft_ms),
         backgroundColor: "#4f6ef7",
       },
       {
-        label: "Avg Decode (ms)",
-        data: nodeLabels.map(h => avgLatency(dataMap[h], "tts_decode_ms_total", "tts_requests_total")),
+        label: "Avg Decode / TTFC (ms)",
+        data: nodeLabels.map(h => extractLatency(dataMap[h]).dec_ttft_ms),
         backgroundColor: "#34d399",
       }
     ]
@@ -522,7 +555,7 @@ function updateCharts(dataMap, upNodes) {
 
   nodeLabels.forEach(h => {
     if (!history.e2e[h]) history.e2e[h] = [];
-    history.e2e[h].push(avgLatency(dataMap[h], "tts_e2e_ms_total", "tts_requests_total"));
+    history.e2e[h].push(extractLatency(dataMap[h]).total_ms);
     if (history.e2e[h].length > MAX_HISTORY) history.e2e[h].shift();
   });
 
@@ -549,9 +582,10 @@ function buildCard(host, m) {
   const openPorts  = getVal(m, "tts_open_ports");
   const wsOpened   = getVal(m, "tts_ws_connections_opened_total");
   const wsClosed   = getVal(m, "tts_ws_connections_closed_total");
-  const avgE2E     = avgLatency(m, "tts_e2e_ms_total", "tts_requests_total");
-  const avgLLM     = avgLatency(m, "tts_llm_ms_total", "tts_requests_total");
-  const avgDecode  = avgLatency(m, "tts_decode_ms_total", "tts_requests_total");
+  const lat        = extractLatency(m);
+  const avgE2E     = lat.total_ms;
+  const avgLLM     = lat.llm_ttft_ms;
+  const avgDecode  = lat.dec_ttft_ms;
   const shortAudio = getVal(m, "tts_short_audio_total");
   const errorRate  = totalReqs > 0 ? (totalErrors / totalReqs * 100) : 0;
   const wsUtil     = maxPorts > 0 ? (openPorts / maxPorts * 100) : 0;
@@ -599,8 +633,9 @@ function buildCard(host, m) {
           <div class="metric-value ${shortAudio > 0 ? "warn" : ""}">${fmt(shortAudio)}</div>
         </div>
         <div class="metric">
-          <div class="metric-label">Avg LLM</div>
-          <div class="metric-value">${fmtMs(avgLLM)}</div>
+          <div class="metric-label">LLM TTFT</div>
+          <div class="metric-value">${avgLLM !== null ? fmtMs(avgLLM) : "N/A"}</div>
+          ${avgLLM === null ? `<div class="metric-sub">awaiting restart</div>` : ""}
         </div>
         <div class="metric">
           <div class="metric-label">Avg Decode</div>
@@ -657,14 +692,12 @@ function updateSummary(dataMap, upNodes, results) {
   document.getElementById("sum-avg-ws").textContent = avgWS;
   document.getElementById("sum-total-ws").textContent = `${totalWS} total across ${upNodes.length} node${upNodes.length !== 1 ? "s" : ""}`;
 
-  // Avg TTFT = avg LLM latency across all nodes
-  let totalLLM = 0, totalReqs = 0;
-  for (const h of upNodes) {
-    totalLLM  += getVal(dataMap[h], "tts_llm_ms_total");
-    totalReqs += getVal(dataMap[h], "tts_requests_total");
-  }
-  const avgTTFT = totalReqs > 0 ? totalLLM / totalReqs : 0;
-  document.getElementById("sum-avg-ttft").textContent = fmtMs(avgTTFT);
+  // Avg E2E latency across all nodes
+  const e2eVals = upNodes.map(h => extractLatency(dataMap[h]).total_ms).filter(v => v > 0);
+  const avgE2EAll = e2eVals.length ? e2eVals.reduce((a, b) => a + b, 0) / e2eVals.length : null;
+  const hasGauges = upNodes.length > 0 && extractLatency(dataMap[upNodes[0]]).source === "gauge";
+  document.getElementById("sum-avg-ttft").textContent = avgE2EAll !== null ? fmtMs(avgE2EAll) : "N/A";
+  document.getElementById("sum-avg-ttft-sub").textContent = hasGauges ? "e2e · gauge" : "e2e · counter avg";
 
   // Nodes up
   // Avg total requests per node

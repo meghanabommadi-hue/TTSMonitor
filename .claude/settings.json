@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(chmod +x /Users/meghana.bommadi/Documents/repos/TTS/monitor/update_ips.sh)",
+      "Bash(curl -s --max-time 5 http://34.126.91.108:8764/metrics)",
+      "Bash(curl -s --max-time 5 -I http://34.126.91.108:8764/metrics)",
+      "Bash(curl -s \"http://localhost:8080/proxy?host=34.126.91.108\")",
+      "Bash(curl -s http://34.126.91.108:8764/metrics)",
+      "Bash(git init:*)",
+      "Bash(git remote:*)",
+      "Bash(git commit -m ':*)",
+      "Bash(git push:*)",
+      "Bash(git pull:*)",
+      "Bash(git checkout:*)",
+      "Bash(git add:*)",
+      "Bash(git rebase:*)",
+      "Bash(GIT_EDITOR=true git rebase --continue)",
+      "Bash(curl -s http://34.87.172.248:8764/metrics)",
+      "Bash(python3 fetch_latency.py 34.87.172.248:8764)"
+    ]
+  }
+}
