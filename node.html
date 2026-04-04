@@ -329,24 +329,18 @@ function getVal(m, name, filterFn) {
 }
 
 function extractLatency(m) {
-  const hasGauges =
-    (m["tts_llm_ttft_avg_ms"] || []).length > 0 &&
-    (m["tts_dec_ttft_avg_ms"] || []).length > 0 &&
-    (m["tts_total_avg_ms"]    || []).length > 0;
-
-  if (hasGauges) {
-    const avg = name => {
-      const vals = (m[name] || []).map(e => e.value);
-      return vals.reduce((a, b) => a + b, 0) / vals.length;
-    };
-    return { llm_ttft_ms: avg("tts_llm_ttft_avg_ms"), dec_ttft_ms: avg("tts_dec_ttft_avg_ms"), total_ms: avg("tts_total_avg_ms"), source: "gauge" };
-  }
-
-  // Named voices only — voice="" are warmup/batch calls, not real TTS requests.
+  // Always use counter avg for E2E and decode — named voices only.
+  // voice="" are warmup/batch calls with anomalously high latency that skew gauge values.
   const named = e => e.labels.voice && e.labels.voice !== "";
   const reqs  = getVal(m, "tts_requests_total", named);
+
+  const hasGauges = (m["tts_llm_ttft_avg_ms"] || []).length > 0;
+  const llmTtft = hasGauges
+    ? (m["tts_llm_ttft_avg_ms"].reduce((a, b) => a + b.value, 0) / m["tts_llm_ttft_avg_ms"].length)
+    : null;
+
   return {
-    llm_ttft_ms: null,
+    llm_ttft_ms: llmTtft,
     dec_ttft_ms: reqs > 0 ? getVal(m, "tts_decode_ms_total", named) / reqs : 0,
     total_ms:    reqs > 0 ? getVal(m, "tts_e2e_ms_total",    named) / reqs : 0,
     source: "counter_avg",
