@@ -139,6 +139,11 @@
 <div class="ip-bar">
   <label>Node IP</label>
   <input id="ip-input" type="text" placeholder="34.126.91.108" value="34.126.91.108" />
+  <select onchange="if(this.value){document.getElementById('ip-input').value=this.value;this.value=''}" style="background:#0f1117;border:1px solid #2d3148;border-radius:6px;color:#94a3b8;padding:7px 10px;font-size:0.85rem;cursor:pointer;outline:none;">
+    <option value="">quick select</option>
+    <option value="34.126.91.108">34.126.91.108</option>
+    <option value="34.21.169.175">34.21.169.175</option>
+  </select>
   <button onclick="loadNode()">Inspect</button>
 </div>
 
@@ -183,6 +188,21 @@
       <div class="stat-label">Active WebSockets</div>
       <div class="stat-value blue" id="s-ws">—</div>
       <div class="stat-sub" id="s-ports"></div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">WS Opened / Closed</div>
+      <div class="stat-value blue" id="s-ws-opened">—</div>
+      <div class="stat-sub" id="s-ws-closed"></div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Open Ports</div>
+      <div class="stat-value blue" id="s-open-ports">—</div>
+      <div class="stat-sub" id="s-max-ports"></div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Clean Disconnects</div>
+      <div class="stat-value green" id="s-clean-disc">—</div>
+      <div class="stat-sub">graceful closes</div>
     </div>
     <div class="stat">
       <div class="stat-label">Short Audio</div>
@@ -394,8 +414,17 @@ function render(m, ts) {
   document.getElementById("s-decode").textContent = fmtMs(lat.dec_ttft_ms);
   document.getElementById("s-reqs").textContent   = fmt(reqs);
   document.getElementById("s-errors").textContent = `${fmt(errors)} errors · ${reqs > 0 ? (errors/reqs*100).toFixed(1) : 0}%`;
-  document.getElementById("s-ws").textContent     = fmt(ws);
-  document.getElementById("s-ports").textContent  = `${fmt(ports)} / ${fmt(maxP)} ports`;
+  const wsOpened   = getVal(m, "tts_ws_connections_opened_total");
+  const wsClosed   = getVal(m, "tts_ws_connections_closed_total");
+  const cleanDisc  = getVal(m, "tts_ws_clean_disconnect_total");
+
+  document.getElementById("s-ws").textContent        = fmt(ws);
+  document.getElementById("s-ports").textContent     = `${fmt(ports)} / ${fmt(maxP)} ports`;
+  document.getElementById("s-ws-opened").textContent = fmt(wsOpened);
+  document.getElementById("s-ws-closed").textContent = `${fmt(wsClosed)} closed`;
+  document.getElementById("s-open-ports").textContent = fmt(ports);
+  document.getElementById("s-max-ports").textContent  = `of ${fmt(maxP)} max`;
+  document.getElementById("s-clean-disc").textContent = fmt(cleanDisc);
   document.getElementById("s-short").textContent  = fmt(short);
   document.getElementById("s-short").className    = `stat-value ${short > 0 ? "yellow" : ""}`;
   document.getElementById("s-engine").textContent = engine.attention_backend || "—";

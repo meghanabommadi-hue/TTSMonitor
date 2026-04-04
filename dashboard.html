@@ -208,6 +208,18 @@
       <div class="metric-sub" id="sum-req-rate-sub">new requests in last 3 min</div>
     </div>
     <div class="summary-stat">
+      <div class="metric-label">New Requests
+        <select id="new-req-window" style="margin-left:6px;background:#1a1d2e;color:#94a3b8;border:1px solid #2d3148;border-radius:4px;font-size:0.7rem;padding:1px 4px">
+          <option value="15">15s</option>
+          <option value="30" selected>30s</option>
+          <option value="60">60s</option>
+          <option value="120">2m</option>
+        </select>
+      </div>
+      <div class="metric-value" style="color:#38bdf8;font-size:1.6rem;font-weight:700" id="sum-new-reqs">—</div>
+      <div class="metric-sub" id="sum-new-reqs-sub">across all nodes</div>
+    </div>
+    <div class="summary-stat">
       <div class="metric-label">Avg E2E Latency</div>
       <div class="metric-value highlight" id="sum-avg-ttft">—</div>
       <div class="metric-sub" id="sum-avg-ttft-sub">across all nodes</div>
@@ -274,73 +286,71 @@
 <script>
 // ── CONFIG ───────────────────────────────────────────────────────────────────
 const NODES = [
-  "34.87.172.248:8764",
-  "34.21.178.114:8764",
-  "34.21.197.73:8764",
-  "34.21.162.21:8764",
-  "34.124.223.202:8764",
-  "34.142.159.11:8764",
-  "35.247.177.234:8764",
-  "35.240.199.137:8764",
-  "34.21.166.27:8764",
-  "35.240.145.107:8764",
   "34.21.148.110:8764",
-  "34.142.177.77:8764",
-  "136.110.9.69:8764",
-  "35.240.196.118:8764",
-  "34.143.255.239:8764",
-  "34.21.184.116:8764",
-  "35.197.138.157:8764",
   "34.87.83.48:8764",
-  "136.110.48.232:8764",
+  "34.142.159.11:8764",
+  "136.110.54.47:8764",
+  "34.21.178.114:8764",
+  "34.142.151.40:8764",
+  "34.21.162.21:8764",
+  "34.143.197.30:8764",
+  "35.186.149.191:8764",
+  "34.87.172.248:8764",
+  "35.197.138.157:8764",
+  "35.240.145.107:8764",
+  "34.21.166.27:8764",
   "34.21.168.212:8764",
-  "34.124.185.219:8764",
+  "34.21.184.116:8764",
   "34.21.195.156:8764",
   "34.87.61.55:8764",
-  "35.247.130.84:8764",
-  "35.186.149.191:8764",
-  "34.142.151.40:8764",
+  "34.142.177.77:8764",
+  "35.240.196.118:8764",
+  "35.240.199.137:8764",
   "34.21.188.20:8764",
-  "34.143.197.30:8764",
-  "35.240.190.241:8764",
-  "34.87.174.165:8764",
-  "34.124.191.114:8764",
-  "35.198.207.7:8764",
-  "34.143.147.217:8764",
-  "34.21.153.158:8764",
+  "136.110.48.232:8764",
   "35.185.180.5:8764",
-  "34.143.231.45:8764",
-  "34.143.203.107:8764",
-  "34.143.225.20:8764",
-  "34.21.191.184:8764",
+  "34.143.164.21:8764",
   "34.87.150.196:8764",
-  "34.124.206.81:8764",
-  "34.158.46.235:8764",
-  "34.87.107.25:8764",
-  "34.158.53.115:8764",
+  "34.87.174.165:8764",
+  "34.21.134.169:8764",
   "34.177.103.93:8764",
+  "34.158.53.115:8764",
+  "34.124.206.81:8764",
+  "35.247.177.234:8764",
+  "34.143.231.45:8764",
   "34.124.163.226:8764",
-  "34.124.232.29:8764",
-  "34.124.224.103:8764",
-  "34.21.178.52:8764",
-  "34.124.205.143:8764",
-  "34.124.205.173:8764",
-  "34.21.170.133:8764",
-  "35.247.150.171:8764",
-  "34.21.173.184:8764",
-  "34.143.189.12:8764",
-  "34.143.242.98:8764",
-  "35.247.130.20:8764",
-  "34.142.172.100:8764",
-  "34.21.166.147:8764",
-  "35.198.192.228:8764",
-  "34.124.201.192:8764",
-  "34.21.183.115:8764",
-  "34.126.173.128:8764",
+  "35.198.207.7:8764",
+  "34.143.225.20:8764",
+  "34.158.46.235:8764",
+  "34.21.191.184:8764",
+  "34.87.107.25:8764",
+  "34.158.43.134:8764",
+  "34.21.197.73:8764",
+  "34.143.203.107:8764",
+  "34.143.147.217:8764",
   "34.126.167.89:8764",
-  "34.142.141.253:8764",
-  "34.158.33.216:8764",
+  "35.247.150.171:8764",
+  "34.124.201.192:8764",
+  "34.21.173.184:8764",
+  "34.124.232.29:8764",
+  "34.21.166.147:8764",
+  "34.126.173.128:8764",
+  "34.143.189.12:8764",
+  "35.247.130.84:8764",
+  "35.198.192.228:8764",
   "34.21.167.200:8764",
+  "34.124.205.143:8764",
+  "34.21.170.133:8764",
+  "34.21.183.115:8764",
+  "34.21.178.52:8764",
+  "34.124.224.103:8764",
+  "34.142.172.100:8764",
+  "34.142.141.253:8764",
+  "34.124.205.173:8764",
+  "34.124.223.202:8764",
+  "34.21.169.175:8764",
+  "136.110.9.69:8764",
+  "35.240.190.241:8764",
 ];
 const METRICS_PATH = "/metrics";
 const REFRESH_MS   = 10_000;
@@ -637,6 +647,19 @@ function buildCard(host, m) {
   const errorRate  = totalReqs > 0 ? (totalErrors / totalReqs * 100) : 0;
   const wsUtil     = maxPorts > 0 ? (openPorts / maxPorts * 100) : 0;
 
+  const cacheHits   = getVal(m, "tts_cache_hits_total");
+  const cacheMisses = getVal(m, "tts_cache_misses_total");
+  const cacheTotal  = cacheHits + cacheMisses;
+  const cacheRate   = cacheTotal > 0 ? (cacheHits / cacheTotal * 100).toFixed(1) : null;
+  const cacheColor  = cacheRate === null ? "#475569" : cacheRate >= 70 ? "#4ade80" : cacheRate >= 30 ? "#f59e0b" : "#f87171";
+
+  const llmMsTotal  = getVal(m, "tts_llm_ms_total");
+  const namedReqs   = getVal(m, "tts_requests_total", e => e.labels.voice && e.labels.voice !== "");
+  const avgLLMMs    = namedReqs > 0 ? llmMsTotal / namedReqs : null;
+
+  const wsLeak      = wsOpened - wsClosed;
+  const wsLeakColor = wsLeak > 5 ? "#f87171" : wsLeak > 0 ? "#f59e0b" : "#4ade80";
+
   const engineEntry = (m["tts_engine_info"] || [])[0];
   const engine = engineEntry ? engineEntry.labels : {};
   const voices = [...new Set((m["tts_requests_total"] || []).map(e => e.labels.voice).filter(Boolean))].sort();
@@ -680,13 +703,34 @@ function buildCard(host, m) {
           <div class="metric-value ${shortAudio > 0 ? "warn" : ""}">${fmt(shortAudio)}</div>
         </div>
         <div class="metric">
-          <div class="metric-label">LLM TTFT</div>
-          <div class="metric-value">${avgLLM !== null ? fmtMs(avgLLM) : "N/A"}</div>
-          ${avgLLM === null ? `<div class="metric-sub">awaiting restart</div>` : ""}
-        </div>
-        <div class="metric">
           <div class="metric-label">Avg Decode</div>
           <div class="metric-value">${fmtMs(avgDecode)}</div>
+        </div>
+      </div>
+      <div class="section-label">Cache</div>
+      <div class="metrics-grid">
+        <div class="metric">
+          <div class="metric-label">Hit Rate</div>
+          <div class="metric-value" style="color:${cacheColor}">${cacheRate !== null ? cacheRate + "%" : "N/A"}</div>
+          <div class="metric-sub">${cacheTotal > 0 ? fmt(cacheTotal) + " total cache calls" : "no cache data"}</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Hits / Misses</div>
+          <div class="metric-value" style="color:#4ade80">${fmt(cacheHits)}</div>
+          <div class="metric-sub">${fmt(cacheMisses)} misses</div>
+        </div>
+      </div>
+      <div class="section-label">LLM</div>
+      <div class="metrics-grid">
+        <div class="metric">
+          <div class="metric-label">Avg LLM ms / req</div>
+          <div class="metric-value">${avgLLMMs !== null ? fmtMs(avgLLMMs) : "N/A"}</div>
+          <div class="metric-sub">full LLM generation time</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">LLM TTFT</div>
+          <div class="metric-value">${avgLLM !== null ? fmtMs(avgLLM) : "N/A"}</div>
+          <div class="metric-sub">${avgLLM === null ? "awaiting restart" : "time to first token"}</div>
         </div>
       </div>
       <div class="section-label">WebSocket Connections</div>
@@ -701,9 +745,9 @@ function buildCard(host, m) {
           </div>
         </div>
         <div class="metric">
-          <div class="metric-label">Opened / Closed</div>
-          <div class="metric-value">${fmt(wsOpened)}</div>
-          <div class="metric-sub">${fmt(wsClosed)} closed</div>
+          <div class="metric-label">WS Leak Check</div>
+          <div class="metric-value" style="color:${wsLeakColor}">${wsLeak >= 0 ? "+" : ""}${wsLeak}</div>
+          <div class="metric-sub">${fmt(wsOpened)} opened · ${fmt(wsClosed)} closed</div>
         </div>
       </div>
       ${voices.length ? `
@@ -983,6 +1027,33 @@ async function refreshTraffic() {
   } catch(_) {}
 }
 
+async function refreshNewReqs() {
+  const windowS = parseInt(document.getElementById("new-req-window")?.value || "30");
+  const since   = Date.now() - windowS * 1000;
+  const namedReqs = snap => (snap.metrics["tts_requests_total"] || [])
+    .filter(e => e.labels.voice && e.labels.voice !== "")
+    .reduce((s, e) => s + e.value, 0);
+
+  let totalDelta = 0, activeCount = 0;
+  await Promise.all(NODES.map(async host => {
+    const ip = host.split(":")[0];
+    try {
+      const resp = await fetch(`/history?host=${ip}&since=${since}`);
+      if (!resp.ok) return;
+      const snaps = await resp.json();
+      if (snaps.length < 2) return;
+      const delta = namedReqs(snaps[snaps.length - 1]) - namedReqs(snaps[0]);
+      if (delta > 0) { totalDelta += delta; activeCount++; }
+    } catch(_) {}
+  }));
+
+  document.getElementById("sum-new-reqs").textContent     = totalDelta;
+  document.getElementById("sum-new-reqs-sub").textContent =
+    activeCount > 0 ? `${activeCount} nodes · last ${windowS}s` : `no new requests in last ${windowS}s`;
+}
+
+document.getElementById("new-req-window")?.addEventListener("change", refreshNewReqs);
+
 async function refreshReqRate() {
   try {
     const resp = await fetch("/activity?window_ms=180000");
@@ -999,7 +1070,9 @@ refresh();
 setInterval(refresh, REFRESH_MS);
 setInterval(refreshTraffic, 5_000);
 setInterval(refreshReqRate, 10_000);
+setInterval(refreshNewReqs, 10_000);
 refreshReqRate();
+refreshNewReqs();
 </script>
 </body>
 </html>

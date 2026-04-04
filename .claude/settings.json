@@ -41,7 +41,15 @@
       "Bash(curl -s \"http://localhost:8080/activity?window_ms=180000\")",
       "Bash(curl -s \"http://localhost:8080/history?host=35.240.199.137&last=5\")",
       "Bash(curl -s \"http://localhost:8080/activity?window_ms=60000\")",
-      "Bash(curl -s \"http://localhost:8080/history?host=35.240.199.137&last=6\")"
+      "Bash(curl -s \"http://localhost:8080/history?host=35.240.199.137&last=6\")",
+      "Bash(curl -s \"http://34.126.91.108:8764/metrics\")",
+      "Bash(python3 gen_cache.py xPertVoice3Apr26PQ_conversation_history_top5000_bot_sentences.txt)",
+      "Bash(chmod +x /Users/meghana.bommadi/Documents/repos/TTS/monitor/update_nodes.sh)",
+      "Bash(curl -s \"http://34.21.169.175:8764/metrics\")",
+      "Read(//Users/meghana.bommadi/Documents/repos/TTS/monitor/**)"
+    ],
+    "additionalDirectories": [
+      "/Users/meghana.bommadi/Documents/repos/TTS/mongoScrape"
     ]
   }
 }

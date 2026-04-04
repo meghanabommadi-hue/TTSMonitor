@@ -2,6 +2,11 @@
 
 ## 1. Add GPU IPs
 
+<!-- update and run -->
+```bash
+./update_nodes.sh ips_new.txt && python3 server.py ips_new.txt
+```
+
 **From a file** (`ips.txt` — one IP per line, `#` for comments):
 ```bash
 python generate_prometheus_config.py --file ips.txt

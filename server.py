@@ -208,13 +208,15 @@ async def handle_index(request: web.Request) -> web.FileResponse:
 async def on_startup(app):
     # Load IPs
     global NODES
+    import sys
+    ips_file = sys.argv[1] if len(sys.argv) > 1 else "ips.txt"
     try:
-        with open("ips.txt") as f:
+        with open(ips_file) as f:
             NODES = [
                 line.strip() for line in f
                 if line.strip() and not line.strip().startswith("#")
             ]
-        print(f"Loaded {len(NODES)} nodes from ips.txt")
+        print(f"Loaded {len(NODES)} nodes from {ips_file}")
     except FileNotFoundError:
         print("ips.txt not found — no background scraping")
 
