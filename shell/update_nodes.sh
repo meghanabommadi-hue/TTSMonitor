@@ -2,8 +2,9 @@
 # Usage: ./update_nodes.sh [ips_file]
 # Default: ips.txt
 
-IPS_FILE="${1:-ips.txt}"
-DASHBOARD="dashboard.html"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+IPS_FILE="${1:-$SCRIPT_DIR/../data/ips.txt}"
+DASHBOARD="$SCRIPT_DIR/../html/dashboard.html"
 
 if [ ! -f "$IPS_FILE" ]; then
   echo "Error: $IPS_FILE not found"

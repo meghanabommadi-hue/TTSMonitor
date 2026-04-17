@@ -11,7 +11,7 @@ from concurrent.futures import ThreadPoolExecutor
 WEBHOOK_URL  = "https://chat.googleapis.com/v1/spaces/AAQADTwcOSU/messages?key=AIzaSyDdI0hCZtE6vySjMm-WEfRq3CPzqKqqsHI&token=pczlLxcETgIpfoNZevPwyH59ft4Y7YU4SJ5Xmm2h4QQ"
 PROXY_BASE   = "http://localhost:8080/proxy"
 VACANCY_URL  = "https://ml-xpert-voice.infra.kapturecrm.com/voice/bajaj/client/vacancy/get/1006978"
-IPS_FILE     = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ips.txt")
+IPS_FILE     = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "ips.txt")
 SCRIPT_PATH  = os.path.abspath(__file__)
 PYTHON_PATH  = "/Users/meghana.bommadi/.pyenv/versions/3.8.18/bin/python3"
 LOG_PATH     = "/tmp/call_status_cron.log"

@@ -15,6 +15,7 @@ import asyncio
 import time
 import json
 from collections import defaultdict, deque
+from pathlib import Path
 from aiohttp import web, ClientSession, ClientTimeout
 
 METRICS_PORT = 8764
@@ -200,7 +201,7 @@ async def handle_cache_info(request: web.Request) -> web.Response:
 
 
 async def handle_index(request: web.Request) -> web.FileResponse:
-    return web.FileResponse("dashboard.html")
+    return web.FileResponse(Path(__file__).parent.parent / "html" / "dashboard.html")
 
 
 # ── App startup ──────────────────────────────────────────────────────────────
@@ -209,7 +210,7 @@ async def on_startup(app):
     # Load IPs
     global NODES
     import sys
-    ips_file = sys.argv[1] if len(sys.argv) > 1 else "ips.txt"
+    ips_file = sys.argv[1] if len(sys.argv) > 1 else str(Path(__file__).parent.parent / "data" / "ips.txt")
     try:
         with open(ips_file) as f:
             NODES = [
@@ -232,7 +233,7 @@ app.router.add_get("/history",    handle_history)
 app.router.add_get("/activity",   handle_activity)
 app.router.add_get("/cache-info", handle_cache_info)
 app.router.add_get("/",           handle_index)
-app.router.add_static("/",        ".")
+app.router.add_static("/",        str(Path(__file__).parent.parent / "html"))
 
 if __name__ == "__main__":
     print(f"Dashboard at http://localhost:{SERVE_PORT}")

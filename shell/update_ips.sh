@@ -3,7 +3,8 @@
 # ips.txt should contain one IP per line (without port)
 # This script regenerates prometheus/prometheus.yml targets
 
-IPS_FILE="${1:-ips.txt}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+IPS_FILE="${1:-$SCRIPT_DIR/../data/ips.txt}"
 
 if [ ! -f "$IPS_FILE" ]; then
   echo "Error: $IPS_FILE not found."
