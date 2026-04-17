@@ -46,10 +46,33 @@
       "Bash(python3 gen_cache.py xPertVoice3Apr26PQ_conversation_history_top5000_bot_sentences.txt)",
       "Bash(chmod +x /Users/meghana.bommadi/Documents/repos/TTS/monitor/update_nodes.sh)",
       "Bash(curl -s \"http://34.21.169.175:8764/metrics\")",
-      "Read(//Users/meghana.bommadi/Documents/repos/TTS/monitor/**)"
+      "Read(//Users/meghana.bommadi/Documents/repos/TTS/monitor/**)",
+      "Bash(curl -s \"https://ml-xpert-voice.infra.kapturecrm.com/voice/bajaj/client/vacancy/get/1006978\")",
+      "Read(//Users/meghana.bommadi/Documents/repos/TTS/**)",
+      "Bash(yt-dlp -x --download-sections \"*12:57-13:03\" --audio-format wav --audio-quality 0 -o \"~/Downloads/women_talking.wav\" \"https://www.youtube.com/watch?v=i-z75AoRGF0\")",
+      "Bash(yt-dlp -x --download-sections \"*12:59-13:03\" --audio-format wav --audio-quality 0 -o \"~/Downloads/women_talking.wav\" \"https://www.youtube.com/watch?v=i-z75AoRGF0\")",
+      "Bash(yt-dlp -x --download-sections \"*13:02-13:06\" --audio-format wav --audio-quality 0 -o \"~/Downloads/women_talking.wav\" \"https://www.youtube.com/watch?v=i-z75AoRGF0\")",
+      "Bash(yt-dlp -x --download-sections \"*13:02-13:04\" --audio-format wav --audio-quality 0 -o \"~/Downloads/women_talking_4.wav\" \"https://www.youtube.com/watch?v=i-z75AoRGF0\")",
+      "Bash(yt-dlp -x --download-sections \"*13:01-13:04\" --audio-format wav --audio-quality 0 -o \"~/Downloads/women_talking_5.wav\" \"https://www.youtube.com/watch?v=i-z75AoRGF0\")",
+      "Bash(yt-dlp -x --download-sections \"*13:00-13:05\" --audio-format wav --audio-quality 0 -o \"~/Downloads/women_talking_5.wav\" \"https://www.youtube.com/watch?v=i-z75AoRGF0\")",
+      "Bash(yt-dlp -x --download-sections \"*12:58-13:07\" --audio-format wav --audio-quality 0 -o \"~/Downloads/women_talking_5.wav\" \"https://www.youtube.com/watch?v=i-z75AoRGF0\")",
+      "Bash(yt-dlp -x --no-part --download-sections \"*13:00-13:05\" --audio-format wav --audio-quality 0 -o \"~/Downloads/women_talking_5.wav\" \"https://www.youtube.com/watch?v=i-z75AoRGF0\")",
+      "Bash(yt-dlp -x --no-part --download-sections \"*13:00-13:05\" --audio-format wav --audio-quality 0 -o \"~/Downloads/women_utube_ref2.wav\" \"https://www.youtube.com/watch?v=i-z75AoRGF0\")",
+      "Bash(yt-dlp --rm-cache-dir)",
+      "Bash(yt-dlp -x --no-part --no-cache-dir --download-sections \"*13:00-13:05\" --audio-format wav --audio-quality 0 -o \"~/Downloads/women_utube_ref2.wav\" \"https://www.youtube.com/watch?v=i-z75AoRGF0\")",
+      "Bash(yt-dlp -x --no-part --no-cache-dir --download-sections \"*11:22-11:28\" --audio-format wav --audio-quality 0 -o \"~/Downloads/ref_11_22.wav\" \"https://www.youtube.com/watch?v=VJp2kTT3VnI\")",
+      "Bash(yt-dlp -x --no-part --no-cache-dir --download-sections \"*30:37-30:43\" --audio-format wav --audio-quality 0 -o \"~/Downloads/ref_30_37.wav\" \"https://www.youtube.com/watch?v=11ZkQhLN-qg\")",
+      "Bash(pip3 install:*)",
+      "Bash(python3 /Users/meghana.bommadi/Documents/repos/TTS/monitor/call_status_cron.py)",
+      "Skill(schedule)",
+      "Skill(schedule:*)",
+      "Bash(crontab -l)",
+      "Bash(crontab -)"
     ],
     "additionalDirectories": [
-      "/Users/meghana.bommadi/Documents/repos/TTS/mongoScrape"
+      "/Users/meghana.bommadi/Documents/repos/TTS/mongoScrape",
+      "/Users/meghana.bommadi/Documents/repos/TTS",
+      "/Users/meghana.bommadi/Downloads"
     ]
   }
 }

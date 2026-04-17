@@ -107,6 +107,42 @@ docker compose up -d
 
 ---
 
+## 10. GChat Status Bot (call_status_cron.py)
+
+Sends GPU stats (active calls, WS, E2E latency, cache hit rate) to GChat every 5 min.
+
+**Run manually:**
+```bash
+python3 /Users/meghana.bommadi/Documents/repos/TTS/monitor/call_status_cron.py
+```
+
+**Check logs:**
+```bash
+tail -f /tmp/call_status_cron.log
+```
+
+**Force restart cron + send alert immediately:**
+```bash
+(crontab -l 2>/dev/null | grep -v call_status_cron; echo "*/5 * * * * /Users/meghana.bommadi/.pyenv/versions/3.8.18/bin/python3 /Users/meghana.bommadi/Documents/repos/TTS/monitor/call_status_cron.py >> /tmp/call_status_cron.log 2>&1") | crontab - && python3 /Users/meghana.bommadi/Documents/repos/TTS/monitor/call_status_cron.py
+```
+
+**If cron stops — re-add it:**
+```bash
+(crontab -l 2>/dev/null | grep -v call_status_cron; echo "*/5 * * * * /Users/meghana.bommadi/.pyenv/versions/3.8.18/bin/python3 /Users/meghana.bommadi/Documents/repos/TTS/monitor/call_status_cron.py >> /tmp/call_status_cron.log 2>&1") | crontab -
+```
+
+**Verify cron is set:**
+```bash
+crontab -l
+```
+
+**Remove the cron job:**
+```bash
+crontab -l | grep -v call_status_cron | crontab -
+```
+
+---
+
 ## File reference
 
 | File | Purpose |

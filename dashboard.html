@@ -61,6 +61,7 @@
       grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
       gap: 16px;
     }
+    .card-wrap { display: contents; }
     .card {
       background: #1e2130; border: 1px solid #2d3148;
       border-radius: 12px; padding: 20px;
@@ -251,10 +252,12 @@
     </div>
   </div>
   <div style="margin-top:16px">
-    <div class="ws-grid-label" style="color:#4ade80">Active Nodes (requests in last 5 min)</div>
+    <div class="ws-grid-label" style="color:#4ade80">Active Nodes (requests in last 5 min) — <span id="count-active">0</span></div>
     <div class="ws-node-grid" id="ws-node-grid-active" style="margin-bottom:16px"></div>
-    <div class="ws-grid-label" style="color:#f59e0b">Idle Nodes (no requests in 5+ min)</div>
-    <div class="ws-node-grid" id="ws-node-grid-idle"></div>
+    <div class="ws-grid-label" style="color:#f59e0b">Idle Nodes (UP but no requests in 5+ min) — <span id="count-idle">0</span></div>
+    <div class="ws-node-grid" id="ws-node-grid-idle" style="margin-bottom:16px"></div>
+    <div class="ws-grid-label" style="color:#f87171">Down Nodes (unreachable) — <span id="count-down">0</span></div>
+    <div class="ws-node-grid" id="ws-node-grid-down"></div>
   </div>
   <div style="margin-top:16px">
     <div class="ws-grid-label">Total Requests by Voice (all nodes)</div>
@@ -281,71 +284,83 @@
 <script>
 // ── CONFIG ───────────────────────────────────────────────────────────────────
 const NODES = [
-  "34.21.148.110:8764",
-  "34.87.83.48:8764",
-  "34.142.159.11:8764",
-  "136.110.54.47:8764",
-  "34.21.178.114:8764",
-  "34.142.151.40:8764",
-  "34.21.162.21:8764",
-  "34.143.197.30:8764",
-  "35.186.149.191:8764",
   "34.87.172.248:8764",
-  "35.197.138.157:8764",
-  "35.240.145.107:8764",
+  "34.21.178.114:8764",
+  "34.21.197.73:8764",
+  "34.21.162.21:8764",
+  "34.124.223.202:8764",
+  "34.142.159.11:8764",
+  "35.247.177.234:8764",
+  "35.240.199.137:8764",
   "34.21.166.27:8764",
-  "34.21.168.212:8764",
+  "35.240.145.107:8764",
+  "34.21.148.110:8764",
+  "34.142.177.77:8764",
+  "136.110.9.69:8764",
+  "35.240.196.118:8764",
+  "34.143.255.239:8764",
   "34.21.184.116:8764",
+  "35.197.138.157:8764",
+  "34.87.83.48:8764",
+  "136.110.48.232:8764",
+  "34.21.168.212:8764",
+  "34.124.185.219:8764",
   "34.21.195.156:8764",
   "34.87.61.55:8764",
-  "34.142.177.77:8764",
-  "35.240.196.118:8764",
-  "35.240.199.137:8764",
-  "34.21.188.20:8764",
-  "136.110.48.232:8764",
-  "35.185.180.5:8764",
-  "34.143.164.21:8764",
-  "34.87.150.196:8764",
-  "34.87.174.165:8764",
-  "34.21.134.169:8764",
-  "34.177.103.93:8764",
-  "34.158.53.115:8764",
-  "34.124.206.81:8764",
-  "35.247.177.234:8764",
-  "34.143.231.45:8764",
-  "34.124.163.226:8764",
-  "35.198.207.7:8764",
-  "34.143.225.20:8764",
-  "34.158.46.235:8764",
-  "34.21.191.184:8764",
-  "34.87.107.25:8764",
-  "34.158.43.134:8764",
-  "34.21.197.73:8764",
-  "34.143.203.107:8764",
-  "34.143.147.217:8764",
-  "34.126.167.89:8764",
-  "35.247.150.171:8764",
-  "34.124.201.192:8764",
-  "34.21.173.184:8764",
-  "34.124.232.29:8764",
-  "34.21.166.147:8764",
-  "34.126.173.128:8764",
-  "34.143.189.12:8764",
   "35.247.130.84:8764",
-  "35.198.192.228:8764",
-  "34.21.167.200:8764",
-  "34.124.205.143:8764",
-  "34.21.170.133:8764",
-  "34.21.183.115:8764",
-  "34.21.178.52:8764",
-  "34.124.224.103:8764",
-  "34.142.172.100:8764",
-  "34.142.141.253:8764",
-  "34.124.205.173:8764",
-  "34.124.223.202:8764",
-  "34.21.169.175:8764",
-  "136.110.9.69:8764",
+  "35.186.149.191:8764",
+  "34.142.151.40:8764",
+  "34.21.188.20:8764",
+  "34.143.197.30:8764",
   "35.240.190.241:8764",
+  "34.87.174.165:8764",
+  "34.124.191.114:8764",
+  "35.198.207.7:8764",
+  "34.143.147.217:8764",
+  "34.21.153.158:8764",
+  "35.185.180.5:8764",
+  "34.143.231.45:8764",
+  "34.143.203.107:8764",
+  "34.143.225.20:8764",
+  "34.21.191.184:8764",
+  "34.87.150.196:8764",
+  "34.124.206.81:8764",
+  "34.158.46.235:8764",
+  "34.87.107.25:8764",
+  "34.158.53.115:8764",
+  "34.177.103.93:8764",
+  "34.124.163.226:8764",
+  "34.124.232.29:8764",
+  "34.124.224.103:8764",
+  "34.21.178.52:8764",
+  "34.124.205.143:8764",
+  "34.124.205.173:8764",
+  "34.21.170.133:8764",
+  "35.247.150.171:8764",
+  "34.21.173.184:8764",
+  "34.143.189.12:8764",
+  "34.143.242.98:8764",
+  "35.247.130.20:8764",
+  "34.142.172.100:8764",
+  "34.21.166.147:8764",
+  "35.198.192.228:8764",
+  "34.124.201.192:8764",
+  "34.21.183.115:8764",
+  "34.126.173.128:8764",
+  "34.126.167.89:8764",
+  "34.142.141.253:8764",
+  "34.158.33.216:8764",
+  "34.21.167.200:8764",
+  "35.198.192.213:8764",
+  "34.177.97.162:8764",
+  "34.143.174.115:8764",
+  "34.21.138.212:8764",
+  "35.240.248.100:8764",
+  "34.21.174.164:8764",
+  "34.142.173.131:8764",
+  "35.198.250.60:8764",
+  "34.177.92.150:8764",
+  "136.110.55.53:8764",
 ];
 const METRICS_PATH = "/metrics";
 const REFRESH_MS   = 10_000;
@@ -411,10 +426,15 @@ function extractLatency(m) {
     ? (m["tts_llm_ttft_avg_ms"].reduce((a, b) => a + b.value, 0) / m["tts_llm_ttft_avg_ms"].length)
     : null;
 
+  // Fallback to all requests if no named-voice requests exist
+  const allReqs = getVal(m, "tts_requests_total");
+  const useReqs = reqs > 0 ? reqs : allReqs;
+  const useFilter = reqs > 0 ? named : undefined;
+
   return {
     llm_ttft_ms: llmTtft,
-    dec_ttft_ms: reqs > 0 ? getVal(m, "tts_decode_ms_total", named) / reqs : 0,
-    total_ms:    reqs > 0 ? getVal(m, "tts_e2e_ms_total",    named) / reqs : 0,
+    dec_ttft_ms: useReqs > 0 ? getVal(m, "tts_decode_ms_total", useFilter) / useReqs : 0,
+    total_ms:    useReqs > 0 ? getVal(m, "tts_e2e_ms_total",    useFilter) / useReqs : 0,
     source: "counter_avg",
   };
 }
@@ -616,6 +636,10 @@ function updateCharts(dataMap, upNodes) {
 
 // ── Build Node Cards ──────────────────────────────────────────────────────────
 
+function hostId(host) {
+  return "card-" + host.replace(/[.:]/g, "-");
+}
+
 function buildCard(host, m) {
   const totalReqs  = getVal(m, "tts_requests_total");
   const totalErrors= getVal(m, "tts_errors_total");
@@ -663,7 +687,7 @@ function buildCard(host, m) {
     : "";
 
   return `
-    <div class="card">
+    <div class="card-wrap" id="${hostId(host)}"><div class="card">
       <div class="card-header">
         <span class="card-ip">${host}</span>
         <span class="badge up">UP</span>
@@ -741,18 +765,18 @@ function buildCard(host, m) {
         <thead><tr><th>Voice</th><th>Reqs</th><th>Avg E2E</th><th>Short</th></tr></thead>
         <tbody>${voiceRows}</tbody>
       </table>` : ""}
-    </div>`;
+    </div></div>`;
 }
 
 function buildDownCard(host, error) {
   return `
-    <div class="card down">
+    <div class="card-wrap" id="${hostId(host)}"><div class="card down">
       <div class="card-header">
         <span class="card-ip">${host}</span>
         <span class="badge down">DOWN</span>
       </div>
       <div class="error-msg">${error}</div>
-    </div>`;
+    </div></div>`;
 }
 
 // ── Summary panel ────────────────────────────────────────────────────────────
@@ -783,29 +807,30 @@ async function updateSummary(dataMap, upNodes, results) {
   }
 
   const activeNodeCount = upNodes.filter(h => activityData[h.split(":")[0]]?.active === true).length;
+  // idle = UP but not explicitly active (includes nodes with no activity entry)
+  const idleNodeCount   = upNodes.filter(h => activityData[h.split(":")[0]]?.active !== true).length;
   const avgActiveWS     = activeNodeCount > 0 ? (activeWS / activeNodeCount).toFixed(1) : "—";
 
-  document.getElementById("sum-ws-active").textContent   = activeWS;
-  document.getElementById("sum-avg-ws").textContent      = avgActiveWS;
-  document.getElementById("sum-avg-ws-sub").textContent  = `across ${activeNodeCount} active node${activeNodeCount !== 1 ? "s" : ""}`;
-  const idleNodeCount = upNodes.filter(h => activityData[h.split(":")[0]]?.active === false).length;
-  document.getElementById("sum-ws-idle").textContent     = idleNodeCount > 0 ? `${idleNodeCount} nodes` : "0";
-  document.getElementById("sum-ws-idle-sub").textContent = idleNodeCount > 0 ? `no requests in 5+ min` : `all nodes active`;
+  setIfChanged("sum-ws-active", activeWS);
+  setIfChanged("sum-avg-ws", avgActiveWS);
+  setIfChanged("sum-avg-ws-sub", `across ${activeNodeCount} active node${activeNodeCount !== 1 ? "s" : ""}`);
+  const downNodeCount = results.filter(r => r.status === "rejected").length;
+  setIfChanged("sum-ws-idle", `${idleNodeCount} idle · ${downNodeCount} down`);
+  setIfChanged("sum-ws-idle-sub", idleNodeCount > 0 ? `UP but no requests in 5+ min` : downNodeCount > 0 ? `all UP nodes active` : `all nodes active`);
 
   // Avg E2E latency across all nodes
   const e2eVals = upNodes.map(h => extractLatency(dataMap[h]).total_ms).filter(v => v > 0);
   const avgE2EAll = e2eVals.length ? e2eVals.reduce((a, b) => a + b, 0) / e2eVals.length : null;
   const hasGauges = upNodes.length > 0 && extractLatency(dataMap[upNodes[0]]).source === "gauge";
-  document.getElementById("sum-avg-ttft").textContent = avgE2EAll !== null ? fmtMs(avgE2EAll) : "N/A";
-  document.getElementById("sum-avg-ttft-sub").textContent = hasGauges ? "e2e · gauge" : "e2e · counter avg";
+  setIfChanged("sum-avg-ttft", avgE2EAll !== null ? fmtMs(avgE2EAll) : "N/A");
+  setIfChanged("sum-avg-ttft-sub", hasGauges ? "e2e · gauge" : "e2e · counter avg");
 
-  // Nodes up
   // Avg total requests per node
   const reqsPerNode = upNodes.map(h => getVal(dataMap[h], "tts_requests_total"));
   const totalReqsAll = reqsPerNode.reduce((a, b) => a + b, 0);
   const avgReqs = reqsPerNode.length ? (totalReqsAll / reqsPerNode.length).toFixed(0) : 0;
-  document.getElementById("sum-avg-reqs").textContent = fmt(Number(avgReqs));
-  document.getElementById("sum-total-reqs").textContent = `${fmt(totalReqsAll)} total across all nodes`;
+  setIfChanged("sum-avg-reqs", fmt(Number(avgReqs)));
+  setIfChanged("sum-total-reqs", `${fmt(totalReqsAll)} total across all nodes`);
 
   // Cache hits across all nodes
   let totalCacheHits = 0, totalCacheMisses = 0;
@@ -816,32 +841,30 @@ async function updateSummary(dataMap, upNodes, results) {
   const totalCacheAll = totalCacheHits + totalCacheMisses;
   const cacheRate     = totalCacheAll > 0 ? (totalCacheHits / totalCacheAll * 100).toFixed(1) : null;
   const cacheColor    = cacheRate === null ? "#475569" : cacheRate >= 70 ? "#4ade80" : cacheRate >= 30 ? "#f59e0b" : "#f87171";
-  document.getElementById("sum-cache-rate").textContent  = cacheRate !== null ? `${cacheRate}%` : "N/A";
-  document.getElementById("sum-cache-rate").style.color  = cacheColor;
-  document.getElementById("sum-cache-hits").textContent  = fmt(totalCacheHits);
-  document.getElementById("sum-cache-misses-sub").textContent = totalCacheAll > 0
+  setIfChanged("sum-cache-rate", cacheRate !== null ? `${cacheRate}%` : "N/A");
+  setStyleIfChanged("sum-cache-rate", "color", cacheColor);
+  setIfChanged("sum-cache-hits", fmt(totalCacheHits));
+  setIfChanged("sum-cache-misses-sub", totalCacheAll > 0
     ? `${fmt(totalCacheMisses)} misses · ${fmt(totalCacheAll)} total`
-    : "no cache data yet";
+    : "no cache data yet");
 
-  document.getElementById("sum-nodes-up").textContent = upNodes.length;
-  document.getElementById("sum-nodes-total").textContent = `of ${NODES.length} total`;
+  setIfChanged("sum-nodes-up", upNodes.length);
+  setIfChanged("sum-nodes-total", `of ${NODES.length} total`);
 
   // Traffic status — use activity data if available, else fallback to req delta
   const currentTotalReqs = upNodes.reduce((sum, h) => sum + getVal(dataMap[h], "tts_requests_total", namedFilter), 0);
-  const trafficEl  = document.getElementById("sum-traffic-status");
-  const trafficSub = document.getElementById("sum-traffic-sub");
   if (prevTotalReqs === null) {
-    trafficEl.textContent = "—";
-    trafficSub.textContent = "waiting for next refresh…";
+    setIfChanged("sum-traffic-status", "—");
+    setIfChanged("sum-traffic-sub", "waiting for next refresh…");
   } else if (currentTotalReqs > prevTotalReqs) {
     const delta = currentTotalReqs - prevTotalReqs;
-    trafficEl.textContent = "ACTIVE";
-    trafficEl.style.color = "#4ade80";
-    trafficSub.textContent = `+${Math.round(delta)} reqs since last refresh`;
+    setIfChanged("sum-traffic-status", "ACTIVE");
+    setStyleIfChanged("sum-traffic-status", "color", "#4ade80");
+    setIfChanged("sum-traffic-sub", `+${Math.round(delta)} reqs since last refresh`);
   } else {
-    trafficEl.textContent = "IDLE";
-    trafficEl.style.color = "#f59e0b";
-    trafficSub.textContent = `no new requests · ${Math.round(currentTotalReqs)} total`;
+    setIfChanged("sum-traffic-status", "IDLE");
+    setStyleIfChanged("sum-traffic-status", "color", "#f59e0b");
+    setIfChanged("sum-traffic-sub", `no new requests · ${Math.round(currentTotalReqs)} total`);
   }
   prevTotalReqs = currentTotalReqs;
 
@@ -877,32 +900,38 @@ async function updateSummary(dataMap, upNodes, results) {
     });
   }
 
-  // Per-node WebSocket chips — split into active vs idle grids
-  const activeChips = [], idleChips = [];
+  // Per-node WebSocket chips — split into active / idle / down grids
+  const activeChips = [], idleChips = [], downChips = [];
   results.forEach((r, i) => {
     const host = NODES[i];
     const ip   = host.split(":")[0];
     if (r.status === "fulfilled") {
-      const ws       = getVal(r.value, "tts_active_websockets");
-      const info     = activityData[host.split(":")[0]];
-      const isIdle   = info && info.active === false;
-      const idleMs   = isIdle && info.idle_since_ms ? now - info.idle_since_ms : 0;
+      const ws      = getVal(r.value, "tts_active_websockets");
+      const info    = activityData[host.split(":")[0]];
+      // Only active if explicitly marked active=true; unknown (no entry) treated as idle
+      const isActive = info?.active === true;
+      const isIdle   = !isActive;
+      const idleMs   = isIdle && info?.idle_since_ms ? now - info.idle_since_ms : 0;
       const idleMin  = Math.floor(idleMs / 60000);
       const chip = `<div class="ws-node-chip ${isIdle ? 'stale-chip' : ''}">
         <span class="chip-ip">${ip}</span>
         <span class="chip-val ${isIdle ? 'stale' : ''}">${isIdle ? 0 : ws}</span>
-        <span style="font-size:0.65rem;color:${isIdle ? '#f59e0b' : '#475569'}">${isIdle ? `idle ${idleMin}m` : `${ws} ws`}</span>
+        <span style="font-size:0.65rem;color:${isIdle ? '#f59e0b' : '#475569'}">${isIdle ? (idleMin > 0 ? `idle ${idleMin}m` : `idle`) : `${ws} ws`}</span>
       </div>`;
-      if (isIdle) idleChips.push(chip); else activeChips.push(chip);
+      if (isActive) activeChips.push(chip); else idleChips.push(chip);
     } else {
-      idleChips.push(`<div class="ws-node-chip down-chip">
+      downChips.push(`<div class="ws-node-chip down-chip">
         <span class="chip-ip">${ip}</span>
         <span class="chip-val down">DOWN</span>
       </div>`);
     }
   });
-  document.getElementById("ws-node-grid-active").innerHTML = activeChips.join("") || '<span style="color:#475569;font-size:0.8rem">No active nodes</span>';
-  document.getElementById("ws-node-grid-idle").innerHTML   = idleChips.join("")   || '<span style="color:#475569;font-size:0.8rem">None</span>';
+  setHTMLIfChanged("ws-node-grid-active", activeChips.join("") || '<span style="color:#475569;font-size:0.8rem">No active nodes</span>');
+  setHTMLIfChanged("ws-node-grid-idle",   idleChips.join("")   || '<span style="color:#475569;font-size:0.8rem">None</span>');
+  setHTMLIfChanged("ws-node-grid-down",   downChips.join("")   || '<span style="color:#475569;font-size:0.8rem">None</span>');
+  setIfChanged("count-active", activeChips.length);
+  setIfChanged("count-idle",   idleChips.length);
+  setIfChanged("count-down",   downChips.length);
 }
 
 // ── Main refresh loop ─────────────────────────────────────────────────────────
@@ -911,36 +940,41 @@ async function refresh() {
   const results = await Promise.allSettled(NODES.map(h => fetchNode(h)));
 
   let upCount = 0, downCount = 0;
-  const cards = [];
   const dataMap = {};
   const upNodes = [];
+  const grid = document.getElementById("grid");
 
   results.forEach((r, i) => {
     const host = NODES[i];
-    if (r.status === "fulfilled") {
-      upCount++;
-      upNodes.push(host);
-      dataMap[host] = r.value;
-      cards.push(buildCard(host, r.value));
+    const id   = hostId(host);
+    const html = r.status === "fulfilled"
+      ? (upCount++, upNodes.push(host), dataMap[host] = r.value, buildCard(host, r.value))
+      : (downCount++, buildDownCard(host, r.reason?.message || "Unreachable"));
+
+    const existing = document.getElementById(id);
+    if (existing) {
+      // Parse into a temp element and swap children — wrapper div stays in DOM
+      const tmp = document.createElement("div");
+      tmp.innerHTML = html;
+      const newWrap = tmp.firstElementChild;
+      existing.innerHTML = newWrap ? newWrap.innerHTML : html;
     } else {
-      downCount++;
-      cards.push(buildDownCard(host, r.reason?.message || "Unreachable"));
+      grid.insertAdjacentHTML("beforeend", html);
     }
   });
 
   document.getElementById("loading").style.display = "none";
-  document.getElementById("grid").innerHTML = cards.join("");
-
-  document.getElementById("status-bar").innerHTML = `
+  setHTMLIfChanged("status-bar", `
     <span class="status-pill up">${upCount} UP</span>
     ${downCount ? `<span class="status-pill down">${downCount} DOWN</span>` : ""}
-  `;
-
-  document.getElementById("refresh-info").textContent =
-    `Last updated: ${new Date().toLocaleTimeString()} · every ${REFRESH_MS/1000}s`;
+  `);
+  setIfChanged("refresh-info", `Last updated: ${new Date().toLocaleTimeString()} · every ${REFRESH_MS/1000}s`);
 
   await updateSummary(dataMap, upNodes, results);
   if (upNodes.length) updateCharts(dataMap, upNodes);
+  refreshTraffic();
+  refreshReqRate();
+  refreshNewReqs();
 }
 
 function switchTab(name) {
@@ -968,47 +1002,44 @@ async function refreshTraffic() {
     }
 
     // Update WS counts
-    document.getElementById("sum-ws-active").textContent  = activeWS;
-    const idleNodeCount2 = Object.values(data).filter(v => v.active === false).length;
-    document.getElementById("sum-ws-idle").textContent    = idleNodeCount2 > 0 ? `${idleNodeCount2} nodes` : "0";
-    document.getElementById("sum-ws-idle-sub").textContent = idleNodeCount2 > 0 ? `no requests in 5+ min` : `all nodes active`;
-    document.getElementById("sum-avg-ws").textContent     = activeNodeCount > 0 ? (activeWS / activeNodeCount).toFixed(1) : "—";
-    document.getElementById("sum-avg-ws-sub").textContent = `across ${activeNodeCount} active node${activeNodeCount !== 1 ? "s" : ""}`;
+    // idle = UP nodes not explicitly active (includes nodes with no activity entry)
+    const idleNodeCount2 = NODES.filter(host => data[host.split(":")[0]]?.active !== true).length - Object.values(data).filter(v => v.status === "down").length;
+    setIfChanged("sum-ws-active", activeWS);
+    setIfChanged("sum-ws-idle",    idleNodeCount2 > 0 ? `${idleNodeCount2} nodes` : "0");
+    setIfChanged("sum-ws-idle-sub", idleNodeCount2 > 0 ? `no requests in 5+ min` : `all nodes active`);
+    setIfChanged("sum-avg-ws",     activeNodeCount > 0 ? (activeWS / activeNodeCount).toFixed(1) : "—");
+    setIfChanged("sum-avg-ws-sub", `across ${activeNodeCount} active node${activeNodeCount !== 1 ? "s" : ""}`);
 
     // Rebuild chips
     const activeChips = [], idleChips = [];
     NODES.forEach(host => {
       const ip   = host.split(":")[0];
       const info = data[ip];
-      if (!info) return;
-      const isIdle  = info.active === false;
-      const idleMs  = isIdle && info.idle_since_ms ? now - info.idle_since_ms : 0;
-      const idleMin = Math.floor(idleMs / 60000);
+      // Only active if explicitly marked active=true; unknown (no entry) treated as idle
+      const isActive = info?.active === true;
+      const isIdle   = !isActive;
+      const idleMs   = isIdle && info?.idle_since_ms ? now - info.idle_since_ms : 0;
+      const idleMin  = Math.floor(idleMs / 60000);
       const chip = `<div class="ws-node-chip ${isIdle ? 'stale-chip' : ''}">
         <span class="chip-ip">${ip}</span>
         <span class="chip-val ${isIdle ? 'stale' : ''}">${isIdle ? 0 : info.ws}</span>
-        <span style="font-size:0.65rem;color:${isIdle ? '#f59e0b' : '#475569'}">${isIdle ? `idle ${idleMin}m` : `${info.ws} ws`}</span>
+        <span style="font-size:0.65rem;color:${isIdle ? '#f59e0b' : '#475569'}">${isIdle ? (idleMin > 0 ? `idle ${idleMin}m` : `idle`) : `${info.ws} ws`}</span>
       </div>`;
-      if (isIdle) idleChips.push(chip); else activeChips.push(chip);
+      if (isActive) activeChips.push(chip); else idleChips.push(chip);
     });
-    document.getElementById("ws-node-grid-active").innerHTML = activeChips.join("") || '<span style="color:#475569;font-size:0.8rem">No active nodes</span>';
-    document.getElementById("ws-node-grid-idle").innerHTML   = idleChips.join("")   || '<span style="color:#475569;font-size:0.8rem">None</span>';
+    setHTMLIfChanged("ws-node-grid-active", activeChips.join("") || '<span style="color:#475569;font-size:0.8rem">No active nodes</span>');
+    setHTMLIfChanged("ws-node-grid-idle",   idleChips.join("")   || '<span style="color:#475569;font-size:0.8rem">None</span>');
 
     // Traffic status
-    const trafficEl  = document.getElementById("sum-traffic-status");
-    const trafficSub = document.getElementById("sum-traffic-sub");
     if (activeNodeCount > 0) {
-      trafficEl.textContent = "ACTIVE";
-      trafficEl.style.color = "#4ade80";
-      trafficSub.textContent = `${activeNodeCount} node${activeNodeCount !== 1 ? "s" : ""} receiving requests`;
+      setIfChanged("sum-traffic-status", "ACTIVE");
+      setStyleIfChanged("sum-traffic-status", "color", "#4ade80");
+      setIfChanged("sum-traffic-sub", `${activeNodeCount} node${activeNodeCount !== 1 ? "s" : ""} receiving requests`);
     } else {
-      trafficEl.textContent = "IDLE";
-      trafficEl.style.color = "#f59e0b";
-      trafficSub.textContent = `no new requests across all nodes`;
+      setIfChanged("sum-traffic-status", "IDLE");
+      setStyleIfChanged("sum-traffic-status", "color", "#f59e0b");
+      setIfChanged("sum-traffic-sub", `no new requests across all nodes`);
     }
-
-    document.getElementById("refresh-info").textContent =
-      `Traffic updated: ${new Date().toLocaleTimeString()} · metrics every ${REFRESH_MS/1000}s`;
   } catch(_) {}
 }
 
@@ -1032,9 +1063,8 @@ async function refreshNewReqs() {
     } catch(_) {}
   }));
 
-  document.getElementById("sum-new-reqs").textContent     = totalDelta;
-  document.getElementById("sum-new-reqs-sub").textContent =
-    activeCount > 0 ? `${activeCount} nodes · last ${windowS}s` : `no new requests in last ${windowS}s`;
+  setIfChanged("sum-new-reqs",     totalDelta);
+  setIfChanged("sum-new-reqs-sub", activeCount > 0 ? `${activeCount} nodes · last ${windowS}s` : `no new requests in last ${windowS}s`);
 }
 
 document.getElementById("new-req-window")?.addEventListener("change", refreshNewReqs);
@@ -1045,19 +1075,28 @@ async function refreshReqRate() {
     if (!resp.ok) return;
     const data = await resp.json();
     const activeCount = Object.values(data).filter(v => v.active === true).length;
-    document.getElementById("sum-req-rate").textContent     = activeCount;
-    document.getElementById("sum-req-rate-sub").textContent =
-      activeCount > 0 ? `nodes with new requests in last 3 min` : `no new requests in last 3 min`;
+    setIfChanged("sum-req-rate",     activeCount);
+    setIfChanged("sum-req-rate-sub", activeCount > 0 ? `nodes with new requests in last 3 min` : `no new requests in last 3 min`);
   } catch(_) {}
 }
 
+// ── Change-only DOM update helpers ───────────────────────────────────────────
+function setIfChanged(id, val) {
+  const el = document.getElementById(id);
+  if (el && el.textContent !== String(val)) el.textContent = val;
+}
+function setStyleIfChanged(id, prop, val) {
+  const el = document.getElementById(id);
+  if (el && el.style[prop] !== val) el.style[prop] = val;
+}
+function setHTMLIfChanged(id, html) {
+  const el = document.getElementById(id);
+  if (el && el.innerHTML !== html) el.innerHTML = html;
+}
+
+// ── Polling loop ──────────────────────────────────────────────────────────────
 refresh();
 setInterval(refresh, REFRESH_MS);
-setInterval(refreshTraffic, 5_000);
-setInterval(refreshReqRate, 10_000);
-setInterval(refreshNewReqs, 10_000);
-refreshReqRate();
-refreshNewReqs();
 </script>
 </body>
 </html>
